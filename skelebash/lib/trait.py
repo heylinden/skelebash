@@ -1,3 +1,4 @@
+from __future__ import annotations
 import typing
 
 if typing.TYPE_CHECKING:
@@ -12,19 +13,19 @@ class Trait:
         self.description: str = self.DESCRIPTION
     def returnAttribute(self, attribute: str, value: int) -> int:
         return value
-    def onTurnStart(self, entity: "Entity") -> None:
+    def onTurnStart(self, entity: Entity) -> None:
         pass
-    def beforeDamageTaken(self, entity: "Entity", amount: int, source: typing.Any) -> int:
+    def beforeDamageTaken(self, entity: Entity, amount: int, source: typing.Any) -> int:
         """Modify damage before it is taken. Return the new damage amount."""
         return amount
-    def afterDamageTaken(self, entity: "Entity", amount: int, source: typing.Any) -> None:
+    def afterDamageTaken(self, entity: Entity, amount: int, source: typing.Any) -> None:
         pass
-    def beforeDamageDealt(self, entity: "Entity", amount: int, target: "Entity") -> int:
+    def beforeDamageDealt(self, entity: Entity, amount: int, target: Entity) -> int:
         """Modify damage before it is dealt. Return the new damage amount."""
         return amount
-    def afterDamageDealt(self, entity: "Entity", amount: int, target: "Entity") -> None:
+    def afterDamageDealt(self, entity: Entity, amount: int, target: Entity) -> None:
         pass
-    def onTick(self, entity: "Entity", skelebash: "Skelebash") -> None: # type: ignore
+    def onTick(self, entity: Entity, skelebash: Skelebash) -> None: # type: ignore
         pass
 
     def __repr__(self) -> str:

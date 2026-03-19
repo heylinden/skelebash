@@ -1,3 +1,4 @@
+from __future__ import annotations
 import typing, random
 
 
@@ -75,7 +76,7 @@ class Skill:
         ((lambda text: printTypewriter(text, 0.0005) )if first else printStyle)(f"{Style.RED}{Style.BOLD}  base damage: {Style.RESET}{self.base_damage}")
         ((lambda text: printTypewriter(text, 0.0005) )if first else printStyle)(f"{Style.BRIGHT_ORANGE}{Style.BOLD}  base stun: {Style.RESET}{self.base_stun}{Style.BRIGHT_BLACK} " + ("(doesn't combo extend)" if not self.base_stun else "(combo extends)"))
         ((lambda text: printTypewriter(text, 0.0005) )if first else printStyle)(f"{Style.BRIGHT_BLACK}{Style.BOLD}  active/base cooldown: {Style.RESET}{self.active_cooldown}/{self.base_cooldown} turns")
-    def use(self, entity: "Entity", target: "Entity") -> Skill.Used | None: # type: ignore
+    def use(self, entity: Entity, target: Entity) -> Skill.Used | None: # type: ignore
         match self.beforeUse(entity, target):
             case "pass":
                 printTypewriter(f"* {self.message.format(entity=entity.name, skill=self.name, target=target.name)}")
@@ -121,7 +122,7 @@ class Skill:
                 return None
             case _:
                 raise ValueError(f"skill.beforeUse() returned illegal value '{before}'. must be 'pass' or 'cancel'.")
-    def beforeUse(self, entity: "Entity", target: "Entity") -> typing.Literal["pass", "cancel"]: # type: ignore
+    def beforeUse(self, entity: Entity, target: Entity) -> typing.Literal["pass", "cancel"]: # type: ignore
         if self.active_cooldown >= 1:
             printTypewriter(f"{Style.RED}skill on cooldown for {self.active_cooldown} more turns.")
         if entity.st < self.st_cost:
@@ -133,14 +134,14 @@ class Skill:
         entity.st -= self.st_cost
         entity.mn -= self.mn_cost
         return "pass"
-    def afterUse(self, entity: "Entity", target: "Entity", used: Skill.Used) -> None: # type: ignore
+    def afterUse(self, entity: Entity, target: Entity, used: Skill.Used) -> None: # type: ignore
         self.active_cooldown = self.base_cooldown
         if self.animation:
             self.animation.play()
     def __repr__(self) -> str:
         return f"Skill('{self.name}', {self.base_damage}dmg, {self.base_stun}stun)"
 
-def playOut(player: "Entity", player_skill: Skill | None, enemy: "Entity", enemy_skill: Skill | None) -> bool: # type: ignore
+def playOut(player: Entity, player_skill: Skill | None, enemy: Entity, enemy_skill: Skill | None) -> bool: # type: ignore
     if not player_skill and not enemy_skill:
         return True
     

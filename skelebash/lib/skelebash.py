@@ -1,10 +1,11 @@
+from __future__ import annotations
 import random, pathlib, json, typing, gzip
 try:
     import readline
 except (ModuleNotFoundError, ImportError):
     ...
 
-from .style import printStyle, Style, printCommandPrompt, clearScreen, enterToContinue, printTypewriter
+from .style import printStyle, Style, printCommandPrompt, clearScreen, enterToContinue, printTypewriter, prompt
 from .entity import Player
 from .constants import ADJECTIVES, LAST_OPENED_FILE, NOUNS, SAVES_DIR
 from .util import deserialize, serialize
@@ -27,8 +28,8 @@ class Skelebash:
     def promptLoad(cls, choose: str | None = None) -> Skelebash:
         if not choose:
             printTypewriter("pick or create a save:")
-        d: dict[str, Skelebash] = {}
-        saves: list[list[pathlib.Path, dict]] = []
+        d: dict[str, dict] = {}
+        saves: list[tuple[pathlib.Path, dict]] = []
         for path in [child for child in list(SAVES_DIR.iterdir()) if child.name.endswith(".save")]:
             path = pathlib.Path(path)
             with gzip.open(path, "rt", encoding="utf-8") as file:
@@ -42,13 +43,13 @@ class Skelebash:
         for i, (path, save) in enumerate(saves, start=1):
             name: str = path.name.removesuffix('.save')
             if not choose:
-                printCommandPrompt(i, f"{name}{' | '+Style.BOLD+'last opened'+Style.RESET if last_opened == name else ''}")
+                printCommandPrompt(str(i), f"{name}{' | '+Style.BOLD+'last opened'+Style.RESET if last_opened == name else ''}")
             d[str(i)] = save
         if not choose:
             printCommandPrompt("n", "new save")
             printCommandPrompt("t", "temporary test run (cannot save!)")
         while True:
-            inp: str = (choose or input("> ")).strip()
+            inp: str = (choose or prompt("load", self))
             if inp in d:
                 skelebash: cls = deserialize(d[inp])
                 skelebash.new = False
@@ -139,7 +140,7 @@ class Skelebash:
 
             first = False
 
-            inp: str = input("> ").strip().lower()
+            inp: str = prompt("", self)
 
             player_skill = None
             active_enemy = self.room.enemies[0]
@@ -149,7 +150,7 @@ class Skelebash:
                 printCommandPrompt("1", "stance")
                 printCommandPrompt("2", "art")
                 printCommandPrompt("3", "armament")
-                cat_inp = input("attack> ").strip()
+                cat_inp = prompt("attack", self)
                 
                 selected_skillset: Stance | Art | Armament | None = {"1": self.player.stance, "2": self.player.art, "3": self.player.armament}.get(cat_inp)
                 
@@ -169,7 +170,7 @@ class Skelebash:
                 for i, sk in enumerate(available_skills):
                     printCommandPrompt(str(i+1), f"{sk.name} ({sk.st_cost} ST, {sk.mn_cost} MN)")
                 
-                sk_inp = input("skill> ").strip()
+                sk_inp = prompt("skill", self)
                 if sk_inp.isdigit() and 1 <= int(sk_inp) <= len(available_skills):
                     player_skill = available_skills[int(sk_inp)-1]
                 else:
@@ -186,9 +187,9 @@ class Skelebash:
                 for i, stack in enumerate(self.player.inventory.itemstacks):
                     printCommandPrompt(str(i+1), f"{stack.count}x {stack.item.name}")
                 printCommandPrompt("c", "cancel")
-                i_inp: str = input("inventory> ").strip()
+                i_inp: str = prompt("inventory", self)
                 if i_inp.isdigit() and 1 <= int(i_inp) <= len(self.player.inventory.itemstacks):
-                    self.player.inventory.itemstacks[int(i_inp)-1].item.showInfo(self.player)
+                    self.player.inventory.itemstacks[int(i_inp)-1].item.showInfo(self.player, self)
                 elif i_inp == "c" or not i_inp:
                     continue
                 else:
@@ -225,7 +226,7 @@ class Skelebash:
                     printCommandPrompt("5", f"Upgrade Defense (currently: {self.player.defense_pct}%) -> +5%")
                     printCommandPrompt("b", "back")
                     
-                    s_inp = input("upgrade> ").strip()
+                    s_inp = prompt("upgrade", self)
                     if s_inp == "b":
                         break
                     
@@ -297,7 +298,7 @@ class Skelebash:
         for attribute in self.__dict__:
             if hasattr(attribute, "onTick"):
                 attribute.onTick(self)
-    def generateID(self) -> None:
+    def generateID(self) -> str:
         while True:
             save_id: str = f"{random.choice(ADJECTIVES)}-{random.choice(NOUNS)}-{random.randint(0, 9)}{random.randint(0, 9)}{random.randint(0, 9)}{random.randint(0, 9)}"
             if not (SAVES_DIR / f"{save_id}.save").exists():
@@ -309,4 +310,4 @@ class Skelebash:
         if self.temp:
             return
         with gzip.open(SAVES_DIR / f"{self.id}.save", "wt", encoding="utf-8") as file:
-            json.dump(serialize(self), file, indent=4)
+            json.dump(serialize(self), file, indent=4) # type: ignore

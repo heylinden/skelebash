@@ -1,3 +1,4 @@
+from __future__ import annotations
 class Keyset:
     ZXCVBN: str = "zxcvbn"
     DIGITS: str = "123456"

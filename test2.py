@@ -1,3 +1,4 @@
+from __future__ import annotations
 import sys
 
 from skelebash.lib.style import printTypewriter
@@ -14,7 +15,7 @@ def main() -> None:
         skelebash.player.inventory.add(VenomDagger()*1)
         skelebash.player.inventory.add(VenomFang()*30)
     while True:
-        
+        ...
 
 if "--skelepanel" in sys.argv:
     skelepanel(skelebash, main)

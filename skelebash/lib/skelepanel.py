@@ -1,6 +1,7 @@
+from __future__ import annotations
 import asyncio, tkinter, typing, io, contextlib, traceback
 
-def skelepanel(skelebash: "Skelebash", after: typing.Callable[[], typing.Any]) -> None:  # type: ignore
+def skelepanel(skelebash: Skelebash, after: typing.Callable) -> None:  # type: ignore
     root: tkinter.Tk = tkinter.Tk()
     root.title("skelepanel™")
 
@@ -27,7 +28,7 @@ def skelepanel(skelebash: "Skelebash", after: typing.Callable[[], typing.Any]) -
                     "phealmn": skelebash.player.healMana
                 })
                 ok = True
-        except Exception:
+        except Exception: # type: ignore
             stderr_buf.write(traceback.format_exc())
 
         out_text = stdout_buf.getvalue().strip()
@@ -62,5 +63,5 @@ def skelepanel(skelebash: "Skelebash", after: typing.Callable[[], typing.Any]) -
     tkinter.Button(root, text="run", command=run).pack(pady=(0, 8))
 
     root.minsize(600, 220)
-    root.after(0, after)
+    root.after(0, after) # type: ignore
     root.mainloop()

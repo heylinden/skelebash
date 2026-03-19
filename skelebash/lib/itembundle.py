@@ -1,3 +1,4 @@
+from __future__ import annotations
 import typing
 
 from .itemstack import ItemStack
@@ -8,7 +9,7 @@ def countItems(*itemstacks: ItemStack) -> list[ItemStack]:
     for itemstack in itemstacks:
         if itemstack.count <= 0:
             continue
-        counted_items: list["Item"] = [i.item for i in counted] # type: ignore
+        counted_items: list[Item] = [i.item for i in counted] # type: ignore
         if itemstack.item in counted_items:
             counted[counted_items.index(itemstack.item)].count += itemstack.count
         else:
@@ -46,7 +47,7 @@ class ItemBundle:
         self.update()
     def update(self) -> None:
         self.itemstacks = countItems(*self.itemstacks)
-    def onTick(self, skelebash: "Skelebash") -> None: # type: ignore
+    def onTick(self, skelebash: Skelebash) -> None: # type: ignore
         self.update()
         for itemstack in self.itemstacks:
             itemstack.onTick(skelebash)

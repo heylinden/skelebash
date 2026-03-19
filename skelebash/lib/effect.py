@@ -1,3 +1,4 @@
+from __future__ import annotations
 import typing
 
 from .style import printTypewriter, Style
@@ -22,38 +23,38 @@ class Effect:
     def returnAttribute(self, attribute: str, value: int) -> int:
         return value
     @classmethod
-    def apply(cls, entity: "Entity", level: int = 1, duration: int = 1) -> "Effect":
+    def apply(cls, entity: Entity, level: int = 1, duration: int = 1) -> "Effect":
         effect: cls = cls(level, duration)
         entity.addEffect(effect)
         return effect
-    def onApply(self, entity: "Entity") -> None:
+    def onApply(self, entity: Entity) -> None:
         printTypewriter(f"{entity.name} was afflicted with {self.name}!")
-    def onTick(self, entity: "Entity", skelebash: "Skelebash") -> None: # type: ignore
+    def onTick(self, entity: Entity, skelebash: Skelebash) -> None: # type: ignore
         self.duration -= 1
-    def onRemove(self, entity: "Entity") -> None:
+    def onRemove(self, entity: Entity) -> None:
         printTypewriter(f"{entity.name} recovered from {self.name}.")
-    def onTurnStart(self, entity: "Entity") -> None:
+    def onTurnStart(self, entity: Entity) -> None:
         pass
-    def beforeDamageTaken(self, entity: "Entity", amount: int, source: typing.Any) -> int:
+    def beforeDamageTaken(self, entity: Entity, amount: int, source: typing.Any) -> int:
         """Modify damage before it is taken. Return the new damage amount."""
         return amount
-    def afterDamageTaken(self, entity: "Entity", amount: int, source: typing.Any) -> None:
+    def afterDamageTaken(self, entity: Entity, amount: int, source: typing.Any) -> None:
         pass
-    def beforeDamageDealt(self, entity: "Entity", amount: int, target: "Entity", source: typing.Any) -> int:
+    def beforeDamageDealt(self, entity: Entity, amount: int, target: Entity, source: typing.Any) -> int:
         """Modify damage before it is dealt. Return the new damage amount."""
         return amount
-    def afterDamageDealt(self, entity: "Entity", amount: int, target: "Entity", source: typing.Any) -> None:
+    def afterDamageDealt(self, entity: Entity, amount: int, target: Entity, source: typing.Any) -> None:
         pass
     
     def __repr__(self) -> str:
         return f"Effect('{self.name}', duration={self.duration})"
 
 class DamageEffect(Effect):
-    def onTick(self, entity: "Entity") -> None:
+    def onTick(self, entity: Entity, skelebash: Skelebash) -> None:  # type: ignore
         entity.hp -= self.level
         printTypewriter(f"{entity.name} took {self.DAMAGE_PER_TURN} {self.element or ''} damage from {self.name}! ({entity.hp} / {entity.max_hp})")
-        super().onTick(entity)
+        super().onTick(entity, skelebash)
 
 class HyperarmorEffect(Effect):
-    def beforeDamageTaken(self, entity: "Entity", amount: int, source: typing.Any) -> int:
+    def beforeDamageTaken(self, entity: Entity, amount: int, source: typing.Any) -> int:
         return pct(pct(amount, 100 + entity.calculate("hyperarmor_strength_pct")), 100 - entity.calculate("hyperarmor_defense_pct"))

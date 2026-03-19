@@ -1,3 +1,4 @@
+from __future__ import annotations
 import typing
 
 from .entity import Entity
@@ -15,15 +16,15 @@ class Room:
         self.enemies: list[Entity] = self.ENEMIES
         self.intro: str | None = self.INTRO
         self.interactions: list[Interaction] = self.INTERACTIONS
-    def enter(self, skelebash: "Skelebash") -> "Room": # type: ignore
+    def enter(self, skelebash: Skelebash) -> "Room": # type: ignore
         if self.intro:
             printTypewriter(self.intro)
             enterToContinue()
         self.onEnter(skelebash)
         return self
-    def onEnter(self, skelebash: "Skelebash") -> None: # type: ignore
+    def onEnter(self, skelebash: Skelebash) -> None: # type: ignore
         ...
-    def onTick(self, skelebash: "Skelebash") -> None: # type: ignore
+    def onTick(self, skelebash: Skelebash) -> None: # type: ignore
         for enemy in self.enemies:
             enemy.onTick(skelebash)
         for interaction in self.interactions:

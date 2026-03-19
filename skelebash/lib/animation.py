@@ -1,3 +1,4 @@
+from __future__ import annotations
 import time, pathlib, typing
 
 from .style import clearScreen, printStyle, Style

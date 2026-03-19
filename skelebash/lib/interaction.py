@@ -1,3 +1,4 @@
+from __future__ import annotations
 from .entity import Entity
 
 
@@ -13,5 +14,5 @@ class Interaction:
         self.require_interact: bool = self.REQUIRE_INTERACT
     def onInteract(self, entity: Entity) -> None:
         ...
-    def onRoomEnemiesDefeated(self, room: "Room") -> None: # type: ignore
+    def onRoomEnemiesDefeated(self, room: Room) -> None: # type: ignore
         ...

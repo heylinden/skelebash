@@ -1,3 +1,4 @@
+from __future__ import annotations
 import typing, importlib, importlib.util, importlib.machinery, pathlib, json, sys, math, gzip, shutil
 
 from .constants import CORE_DIR, MODS_DIR, PUBLIC_DIR
@@ -97,25 +98,25 @@ def deserialize(d: dict, prefer: typing.Literal["core", "mod"] | None = None) ->
     spec.loader.exec_module(obj)
     for part in d["__class__"].split("."):
         obj = getattr(obj, part)
-    obj = obj()
+    obj = obj() # type: ignore
     d = {k: reverseParse(v, prefer) for k, v in d.items()}
     obj.__dict__ = d
     return obj
 
-def pctfloat(base: int, pct: int) -> int:
-    return base * (pct / 100)
-def pct(base: int, pct: int) -> int:
-    return math.floor(pctfloat(base, pct))
+def pctfloat(base: int, percentage: int) -> float:
+    return base * (percentage / 100)
+def pct(base: int, percentage: int) -> int:
+    return math.floor(pctfloat(base, percentage))
 
 def public(obj: typing.Any) -> typing.Any:
     if not PUBLIC_DIR.exists():
         PUBLIC_DIR.mkdir()
     try:
         data = serialize(obj() if callable(obj) else obj)
-    except Exception:
+    except Exception: # type: ignore
         data = serialize(obj)
     with gzip.open(PUBLIC_DIR / f"{obj.__qualname__.lower() if hasattr(obj, '__qualname__') else obj.__class__.__qualname__.lower()}.pack", "wt", encoding="utf-8") as file:
-        json.dump(data, file, indent=4)
+        json.dump(data, file, indent=4) # type: ignore
     obj.__public__ = True
     return obj
 

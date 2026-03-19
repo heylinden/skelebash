@@ -1,3 +1,4 @@
+from __future__ import annotations
 import os, sys, re, typing, time
 
 
@@ -72,7 +73,7 @@ def breakLine(count: int = 1) -> None:
     print("\n" * (count - 1))
 def clearScreen() -> None:
     if "--no-clear" not in sys.argv:
-        os.system("clear")
+        os.system("cls" if os.name == "nt" else "clear")
 def printPanel(text: str, printer: typing.Callable = printStyle) -> None:
     plain_text = re.sub(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])', '', text)
     content_width = max([len(line) + 2 for line in plain_text.split("\n")])
@@ -83,7 +84,7 @@ def printPanel(text: str, printer: typing.Callable = printStyle) -> None:
     printer(f"╰{'─'*content_width}╯")
 def printCentered(text: str) -> None:
     plain_text = re.sub(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])', '', text)
-    plain_centered: int = plain_text.center(os.get_terminal_size().columns)
+    plain_centered: str = plain_text.center(os.get_terminal_size().columns)
     printStyle(" " * (len(plain_centered) - len(plain_centered.lstrip())) + text)
 def enterToContinue(show_text: bool = True) -> None:
     if "--no-clear" not in sys.argv and "--fast" not in sys.argv and show_text:
@@ -92,7 +93,7 @@ def enterToContinue(show_text: bool = True) -> None:
             input()
         except (KeyboardInterrupt, EOFError):
             ...
-def toIndentifier(s: str) -> str:
+def toIdentifier(s: str) -> str:
     new_s: str = ""
     for char in s:
         if char.isupper():
@@ -101,3 +102,13 @@ def toIndentifier(s: str) -> str:
             new_s += char
     new_s = new_s.removeprefix("_")
     return new_s
+def prompt(key: str, skelebash: Skelebash | None = None) -> str:
+    while True:
+        try:
+            return input(f"{key}> ").strip().lower()
+        except KeyboardInterrupt:
+            continue
+        except EOFError:
+            if skelebash:
+                skelebash.save()
+            exit(1)

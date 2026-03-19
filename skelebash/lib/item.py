@@ -1,10 +1,11 @@
+from __future__ import annotations
 import math, re
 
 from .skillset import Skillset
 from .skill import Skill
 from .itembundle import ItemBundle, countItems
 from .itemstack import ItemStack
-from .style import breakLine, clearScreen, enterToContinue, printCommandPrompt, printPanel, printCentered, printStyle, Style, printTypewriter
+from .style import breakLine, clearScreen, enterToContinue, printCommandPrompt, printPanel, printCentered, printStyle, Style, printTypewriter, prompt
 from .animation import LEVEL_UP_ANIMATION, MASTERY_UP_ANIMATION
 from .goal import Goal
 from .util import public
@@ -102,7 +103,7 @@ class Item:
         return public(ItemStack(self, n))
     def __eq__(self, other: Item) -> bool:
         return self.NAME == other.NAME
-    def showInfo(self, entity: "Entity", allow_use: bool = True, allow_upgrade: bool = True, allow_goals_view: bool = True) -> None: # type: ignore
+    def showInfo(self, entity: Entity, skelebash: Skelebash, allow_use: bool = True, allow_upgrade: bool = True, allow_goals_view: bool = True) -> None: # type: ignore
         first: bool = True
         while True:
             clearScreen()
@@ -126,7 +127,7 @@ class Item:
                 printCommandPrompt("u", f"{Style.BRIGHT_GREEN if can_upgrade and not max_level else Style.RED}upgrade this item ({', '.join([(str(itemstack.count)+'x '+itemstack.item.name) for itemstack in self.upgrade_costs[self.level - 1]])}){' | NOT ENOUGH RESOURCES' if not can_upgrade else (' | MAX LEVEL' if max_level else '')}", ((lambda text: printTypewriter(text, 0.005)) if first else printStyle))
             printCommandPrompt("b", "back", ((lambda text: printTypewriter(text, 0.005)) if first else printStyle))
             printCommandPrompt("?", "help", ((lambda text: printTypewriter(text, 0.005)) if first else printStyle))
-            inp: str = input("item> ").strip()
+            inp: str = prompt("item", skelebash)
             if inp == use_command and self.usable and allow_use:
                 self.onUse(entity)
             elif inp == "u" and self.level and allow_upgrade:
@@ -175,7 +176,7 @@ class Item:
             elif inp == "b":
                 return
             first = False
-    def addMastery(self, mxp: int, entity: "Entity") -> None: # type: ignore
+    def addMastery(self, mxp: int, entity: Entity) -> None: # type: ignore
         multiplier: float = 1.0
         mastery_before: int = self.mastery
         if self.level > 1:
@@ -183,22 +184,22 @@ class Item:
         self.mastery += round(mxp * multiplier)
         if math.floor(self.mastery / 100) > math.floor(mastery_before / 100):
             self.onMasteryUpgrade(entity)
-    def masteryUp(self, entity: "Entity") -> None: # type: ignore
+    def masteryUp(self, entity: Entity) -> None: # type: ignore
         self.addMastery(100, entity)
-    def levelUp(self, n: int, entity: "Entity") -> None: # type: ignore
+    def levelUp(self, n: int, entity: Entity) -> None: # type: ignore
         self.level += n
         self.onUpgrade(entity)
-    def equipAsArmament(self, entity: "Entity") -> None: # type: ignore
+    def equipAsArmament(self, entity: Entity) -> None: # type: ignore
         entity.armament = self.skillset
         printTypewriter(f"equipped {self.name} as armament.")
         enterToContinue()
-    def onUse(self, entity: "Entity") -> None: # type: ignore
+    def onUse(self, entity: Entity) -> None: # type: ignore
         enterToContinue()
-    def onUpgrade(self, entity: "Entity") -> None: # type: ignore
+    def onUpgrade(self, entity: Entity) -> None: # type: ignore
         LEVEL_UP_ANIMATION.play(1)
-    def onMasteryUpgrade(self, entity: "Entity") -> None: # type: ignore
+    def onMasteryUpgrade(self, entity: Entity) -> None: # type: ignore
         MASTERY_UP_ANIMATION.play(1)
-    def onTick(self, skelebash: "Skelebash") -> None: # type: ignore
+    def onTick(self, skelebash: Skelebash) -> None: # type: ignore
         for goal in self.goals:
             goal.onTick(skelebash)
     def __repr__(self) -> str:

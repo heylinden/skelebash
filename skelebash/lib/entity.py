@@ -1,3 +1,4 @@
+from __future__ import annotations
 import typing
 
 from .item import Item
@@ -115,7 +116,7 @@ class Entity:
             trait_or_effect.afterDamageTaken(self, amount, source)
         return amount
 
-    def dealDamage(self, amount: int, target: "Entity", source: DamageSource | tuple[DamageSource, typing.Any] = DamageSource.UNKNOWN) -> int:
+    def dealDamage(self, amount: int, target: Entity, source: DamageSource | tuple[DamageSource, typing.Any] = DamageSource.UNKNOWN) -> int:
         for trait_or_effect in self.traits + self.effects:
             amount = trait_or_effect.beforeDamageDealt(self, amount, target, source)
         dealt = target.takeDamage(amount, source or self)
@@ -133,7 +134,7 @@ class Entity:
             effects_str = f" {Style.MAGENTA}{effects_str}{Style.RESET}"
         return f"{name_str} | {hp_str} | {st_str} | {mn_str}{effects_str}"
 
-    def onTick(self, skelebash: "Skelebash") -> None: # type: ignore
+    def onTick(self, skelebash: Skelebash) -> None: # type: ignore
         for effect in self.effects[:]:
             effect.onTick(self, skelebash)
             if effect.duration <= 0:
@@ -142,7 +143,7 @@ class Entity:
             trait.onTick(self, skelebash)
         for itemstack in self.inventory.itemstacks:
             itemstack.onTick(skelebash)
-        for skill in self.skills:
+        for skill in self.skills.skills:
             skill.onTick(skelebash)
         if self.brain:
             self.brain.onTick(self, skelebash)
