@@ -103,13 +103,27 @@ def toIdentifier(s: str) -> str:
             new_s += char
     new_s = new_s.removeprefix("_")
     return new_s
-def prompt(key: str, skelebash: Skelebash | None = None) -> str:
+def prompt(key: str, skelebash: Skelebash | None = None, safe: bool = False) -> str:
     while True:
         try:
             return input(f"{key}> ").strip().lower()
         except KeyboardInterrupt:
-            continue
+            breakLine()
         except EOFError:
+            breakLine()
             if skelebash:
                 skelebash.saveGame()
-            exit(1)
+                if not skelebash.temp:
+                    printStyle(f"{Style.BRIGHT_GREEN}game saved to {skelebash.id}.save")
+                exit(0)
+            elif not safe:
+                breakLine()
+                printStyle(f"{Style.BRIGHT_RED}are you sure? your game may not be saved if you continue. (y/N)")
+                inp: str = input(f"{Style.BRIGHT_RED}^d> ").strip().lower()
+                if inp == "y":
+                    exit(0)
+                else:
+                    printStyleInline(Style.RESET)
+                    continue
+            else:
+                exit(0)

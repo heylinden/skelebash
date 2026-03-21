@@ -26,6 +26,10 @@ class Skillset:
                 keymap |= {
                     key: lambda: printTypewriter(f"{Style.RED}skill not unlocked.")
                 }
+    
+    def onTick(self, entity: Entity, skelebash: Skelebash) -> None: # type: ignore
+        for skill in self.skills:
+            skill.onTick(entity, skelebash)
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({', '.join(repr(skill) for skill in self.skills)})"
 class Stance(Skillset):
@@ -33,4 +37,6 @@ class Stance(Skillset):
 class Art(Skillset):
     ...
 class Armament(Skillset):
+    ...
+class FollowUp(Skillset):
     ...

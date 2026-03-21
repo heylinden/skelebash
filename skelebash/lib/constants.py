@@ -1,5 +1,5 @@
 from __future__ import annotations
-import typing, pathlib
+import typing, pathlib, sys
 
 from .style import Style
 

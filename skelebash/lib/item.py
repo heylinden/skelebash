@@ -34,7 +34,11 @@ def colorBuff(buff: str) -> str:
         "level": Style.YELLOW + Style.BOLD,
         "rarity": Style.BOLD,
         "i-frames": Style.MAGENTA + Style.BOLD,
-        "stun": Style.ORANGE + Style.BOLD
+        "stun": Style.ORANGE + Style.BOLD,
+        "stance": Style.BRIGHT_BLUE,
+        "art": Style.BLUE,
+        "armament": Style.BRIGHT_BLUE,
+        "follow-up": Style.ORANGE
     }
     
     def replace_color(match: re.Match):

@@ -8,6 +8,7 @@ class Dungeon:
     def __init__(self) -> None:
         self.name: str = self.NAME
         self.rooms: list[Room] = self.ROOMS
+    
     def onTick(self, skelebash: Skelebash) -> None: # type: ignore
         ...
     def __repr__(self) -> str:

@@ -5,12 +5,13 @@ try:
 except (ModuleNotFoundError, ImportError):
     ...
 
-from .style import printStyle, Style, printCommandPrompt, clearScreen, enterToContinue, printTypewriter, prompt
+from .style import printStyle, Style, printCommandPrompt, clearScreen, enterToContinue, printTypewriter, prompt, printCentered
 from .entity import Player
 from .constants import ADJECTIVES, LAST_OPENED_FILE, NOUNS, SAVES_DIR
 from .util import deserialize, serialize
 from .room import Room
 from .dungeon import Dungeon, PlaceholderDungeon
+from .character import Character
 
 
 class Skelebash:
@@ -28,7 +29,7 @@ class Skelebash:
         room_repr: str = '\n'.join(['  '+line for line in repr(self.room).split('\n') if line.strip()]).strip()
         return f"Skelebash(\n  '{self.id}',\n  player={player_repr},\n  dungeon={dungeon_repr},\n  room={room_repr},\n  temp={self.temp}\n)"
     @classmethod
-    def promptLoad(cls, choose: str | None = None) -> Skelebash:
+    def promptLoad(cls, chars: list[Character], choose: str | None = None, choose_char: str | None = None) -> Skelebash:
         if not choose:
             printTypewriter("pick or create a save:")
         d: dict[str, dict] = {}
@@ -52,7 +53,7 @@ class Skelebash:
             printCommandPrompt("n", "new save")
             printCommandPrompt("t", "temporary test run (cannot save!)")
         while True:
-            inp: str = (choose or prompt("load", self))
+            inp: str = (choose or prompt("load", safe=True))
             if inp in d:
                 skelebash: cls = deserialize(d[inp])
                 skelebash.new = False
@@ -92,6 +93,7 @@ class Skelebash:
                 printTypewriter(f"{Style.RED}invalid input")
                 if choose:
                     exit(1)
+    
     def startGame(self) -> None:
         from .skill import playOut
         from .style import clearScreen, printPanel, printCentered, breakLine
@@ -103,16 +105,16 @@ class Skelebash:
             clearScreen()
             
             # Print VS Layout
-            printPanel(self.player.getInfoBar(), printer=(lambda t: printTypewriter(t, 0.005)) if first else printStyle)
+            printPanel(self.player.getInfoBar(), printer=printCentered)
             breakLine()
-            printStyle(f"      {Style.BOLD}{Style.RED}VS{Style.RESET}")
+            printCentered(f"{Style.BOLD}{Style.RED}--- VS ---{Style.RESET}")
             breakLine()
             
             for trait_or_effect in self.player.traits + self.player.effects:
                 trait_or_effect.onTurnStart(self.player)
 
             for enemy in self.room.enemies:
-                printPanel(enemy.getInfoBar(), printer=(lambda t: printTypewriter(t, 0.005)) if first else printStyle)
+                printPanel(enemy.getInfoBar(), printer=printCentered)
                 breakLine()
 
             if self.player.hp <= 0:
@@ -142,45 +144,62 @@ class Skelebash:
                 printCommandPrompt("sq", "save and quit", (lambda text: printTypewriter(text, 0.005) )if first else printStyle)
 
             first = False
-
-            inp: str = prompt("", self)
+            if not self.player.stun:
+                inp: str = prompt("", self)
+            else:
+                printTypewriter(f"{self.player.name} is stunned!")
+                inp = "p"
 
             player_skill = None
             active_enemy = self.room.enemies[0]
 
             if inp == "a":
                 printTypewriter("select category:")
-                printCommandPrompt("1", "stance")
-                printCommandPrompt("2", "art")
-                printCommandPrompt("3", "armament")
-                cat_inp = prompt("attack", self)
-                
-                selected_skillset: Stance | Art | Armament | None = {"1": self.player.stance, "2": self.player.art, "3": self.player.armament}.get(cat_inp)
-                
-                if not selected_skillset or not selected_skillset.skills:
-                    printTypewriter("you have no skills in this category!")
-                    enterToContinue()
+                printCommandPrompt("1", f"{Style.BRIGHT_BLACK if not self.player.stance.skills else ''}stance ({len(self.player.stance.skills)} skill{'' if len(self.player.stance.skills) == 1 else 's'}){Style.RESET}")
+                printCommandPrompt("2", f"{Style.BRIGHT_BLACK if not self.player.art.skills else ''}art ({len(self.player.art.skills)} skill{'' if len(self.player.art.skills) == 1 else 's'}){Style.RESET}")
+                printCommandPrompt("3", f"{Style.BRIGHT_BLACK if not self.player.armament.skills else ''}armament ({len(self.player.armament.skills)} skill{'' if len(self.player.armament.skills) == 1 else 's'}){Style.RESET}")
+                printCommandPrompt("4", f"{Style.BRIGHT_BLACK if not self.player.follow_up.skills else ''}follow-up ({len(self.player.follow_up.skills)} skill{'' if len(self.player.follow_up.skills) == 1 else 's'}){Style.RESET}")
+                printCommandPrompt("b", "back")
+                while True:
+                    cat_inp = prompt("attack", self)
+                    if cat_inp:
+                        break
+                if cat_inp == "b":
                     continue
                 
-                # Check for available skills
-                available_skills = [sk for sk in selected_skillset.skills if sk.active_cooldown == 0]
-                if not available_skills:
-                    printTypewriter("all skills in this category are on cooldown!")
+                selected_skillset: Stance | Art | Armament | None = {"1": self.player.stance, "2": self.player.art, "3": self.player.armament, "4": self.player.follow_up}.get(cat_inp)
+                
+                if not selected_skillset:
+                    printTypewriter("that category does not exist.")
+                    enterToContinue()
+                    continue
+                if not selected_skillset.skills:
+                    printTypewriter("you have no skills in this category!")
                     enterToContinue()
                     continue
 
                 printTypewriter("select skill:")
-                for i, sk in enumerate(available_skills):
-                    printCommandPrompt(str(i+1), f"{sk.name} ({sk.st_cost} ST, {sk.mn_cost} MN)")
-                
-                sk_inp = prompt("skill", self)
-                if sk_inp.isdigit() and 1 <= int(sk_inp) <= len(available_skills):
-                    player_skill = available_skills[int(sk_inp)-1]
+                for i, sk in enumerate(selected_skillset.skills):
+                    printCommandPrompt(str(i+1), f"{Style.BRIGHT_BLACK if sk.active_cooldown else ''}{sk.name} ({sk.st_cost}st, {sk.mn_cost}mn)" + (f"{Style.BRIGHT_BLACK} | {sk.active_cooldown}{Style.RESET}" if sk.active_cooldown else ""))
+                printCommandPrompt("b", "back")
+
+                while True:
+                    sk_inp = prompt("skill", self)
+                    if sk_inp:
+                        break
+                if sk_inp == "b":
+                    continue
+                if sk_inp.isdigit() and 1 <= int(sk_inp) <= len(selected_skillset.skills):
+                    skill: Skill = selected_skillset.skills[int(sk_inp)-1]
+                    if skill.active_cooldown:
+                        printTypewriter(f"{Style.BRIGHT_BLACK}skill is on cooldown!{Style.RESET}")
+                        enterToContinue()
+                        continue
+                    player_skill = skill
                 else:
                     continue
             elif inp == "p":
-                printTypewriter("you pass your turn.")
-                pass
+                ...
             elif inp == "i":
                 printTypewriter("\n--- inventory ---", 0.01)
                 if not self.player.inventory.itemstacks:
@@ -282,16 +301,17 @@ class Skelebash:
                 printTypewriter(f"{Style.RED}invalid input")
                 enterToContinue()
                 continue
-
-            if not active_enemy.brain:
-                from .brain import ComplexBrain
-                active_enemy.brain = ComplexBrain()
-
-            possessive: str = '\'' if active_enemy.name.endswith('s') else '\'s'
-            printTypewriter(f"\n--- {active_enemy.name + possessive} turn ---")
-            printTypewriter(f"\n{Style.BRIGHT_BLACK}thinking...\n", 0.1)
-
-            enemy_skill = active_enemy.brain.decide(active_enemy, self.player)
+            enemy_skill: Skill | None = None
+            if not active_enemy.stun:
+                if not active_enemy.brain:
+                    from .brain import ComplexBrain
+                    active_enemy.brain = ComplexBrain()
+                possessive: str = '\'' if active_enemy.name.endswith('s') else '\'s'
+                printTypewriter(f"\n--- {active_enemy.name + possessive} turn ---")
+                printTypewriter(f"\n{Style.BRIGHT_BLACK}thinking...\n", 0.1)
+                enemy_skill = active_enemy.brain.decide(active_enemy, self.player)
+            else:
+                printTypewriter(f"{active_enemy.name} is stunned!")
 
             success = playOut(self.player, player_skill, active_enemy, enemy_skill)
             
@@ -300,7 +320,9 @@ class Skelebash:
                 print("tick!")
                 self.onTick()
     def onTick(self) -> None:
-        for attribute in self.__dict__:
+        for key, attribute in self.__dict__.items():
+            if key == "selected":
+                continue
             if hasattr(attribute, "onTick"):
                 attribute.onTick(self)
     def generateID(self) -> str:

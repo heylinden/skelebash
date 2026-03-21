@@ -2,8 +2,8 @@ from __future__ import annotations
 import typing, random
 
 
-from .animation import CLASH_ANIMATION
-from .style import printStyle, printTypewriter, Style, enterToContinue
+from .animation import CLASH_ANIMATION, PUNCH_ANIMATION
+from .style import printStyle, printTypewriter, Style, enterToContinue, printPanel, breakLine
 from .animation import Animation
 from .util import pct
 from .damagesource import DamageSource
@@ -24,7 +24,7 @@ class Skill:
     HYPERARMOR: bool = False
     LOCKED: bool = False
     UNLOCK_AT_MASTERY: int = 0
-    BASE_COOLDOWN: int = 1
+    COOLDOWN: int = 1
     STARTING_COOLDOWN: int = 0
     ANIMATION: Animation | None = None
     class Used:
@@ -63,7 +63,7 @@ class Skill:
         self.hyperarmor: bool = self.HYPERARMOR
         self.locked: bool = self.LOCKED
         self.unlock_at_mastery: int = self.UNLOCK_AT_MASTERY
-        self.base_cooldown: int = self.BASE_COOLDOWN
+        self.base_cooldown: int = self.COOLDOWN
         self.active_cooldown: int = self.STARTING_COOLDOWN
         self.animation: Animation | None = self.ANIMATION
         self.message: str = self.MESSAGE
@@ -139,18 +139,29 @@ class Skill:
         self.active_cooldown = self.base_cooldown
         if self.animation:
             self.animation.play()
+    
+    def onTick(self, entity: Entity, skelebash: Skelebash) -> None: # type: ignore
+        self.active_cooldown -= 1
     def __repr__(self) -> str:
         return f"Skill('{self.name}', {self.base_damage}dmg, {self.base_stun}stun)"
 
 def playOut(player: Entity, player_skill: Skill | None, enemy: Entity, enemy_skill: Skill | None) -> bool: # type: ignore
-    if not player_skill and not enemy_skill:
-        return True
     
     if player_skill:
-        printTypewriter(f"{player.name} used {player_skill.name}!")
+        printPanel(f"{player.name} used {player_skill.name}!")
+        breakLine()
+    else:
+        printPanel(f"{player.name} passes their turn.")
+        breakLine()
     if enemy_skill:
-        printTypewriter(f"{enemy.name} used {enemy_skill.name}!")
+        printPanel(f"{enemy.name} used {enemy_skill.name}!")
+        breakLine()
+    else:
+        printPanel(f"{enemy.name} passes their turn.")
+        breakLine()
 
+    if not player_skill and not enemy_skill:
+        return True
     if not player_skill:
         enemy_skill.use(enemy, player)
         return True
@@ -160,31 +171,39 @@ def playOut(player: Entity, player_skill: Skill | None, enemy: Entity, enemy_ski
 
     startup_diff: int = abs(player_skill.startup - enemy_skill.startup)
     if startup_diff <= 5:
+        enterToContinue()
         CLASH_ANIMATION.play()
-        printTypewriter(f"{Style.YELLOW}the attacks clashed! the turn resets.{Style.RESET}")
-        return False
+        printTypewriter(f"{Style.YELLOW}* the attacks clashed!{Style.RESET}")
+        return True
     elif player_skill.startup < enemy_skill.startup:
         if enemy_skill.hyperarmor:
+            printTypewriter(f"{Style.BRIGHT_BLUE}* {player.name} tries to interrupt {enemy.name} but they're protected by hyperarmor!{Style.RESET}")
             HyperarmorEffect.apply(enemy, 1, 1)
             player_skill.use(player, enemy)
-            enemy_skill.use(enemy, player)
+            return bool(enemy_skill.use(enemy, player))
         elif enemy_skill.iframes:
-            enemy_skill.use(enemy, player)
+            printTypewriter(f"{Style.MAGENTA}* {enemy.name} tries to interrupt {player.name} but they're protected by i-frames!{Style.RESET}")
+            return bool(enemy_skill.use(enemy, player))
         else:
-            player_skill.use(player, enemy)
+            printTypewriter(f"{Style.RED}* {player.name} interrupts {enemy.name}! {Style.BRIGHT_BLACK}{player_skill.startup} tick{'s' if player_skill.startup != 1 else ''} < {enemy_skill.startup} tick{'s' if enemy_skill.startup != 1 else ''}{Style.RESET}")
+            return bool(player_skill.use(player, enemy))
     else:  # enemy_skill.startup < player_skill.startup
         if player_skill.hyperarmor:
+            printTypewriter(f"{Style.BRIGHT_BLUE}* {enemy.name} tries to interrupt {player.name} but they're protected by hyperarmor!{Style.RESET}")
             HyperarmorEffect.apply(player, 1, 1)
             enemy_skill.use(enemy, player)
-            player_skill.use(player, enemy)
+            return bool(player_skill.use(player, enemy))
         elif player_skill.iframes:
-            player_skill.use(player, enemy)
+            printTypewriter(f"{Style.MAGENTA}* {enemy.name} tries to interrupt {player.name} but they're protected by i-frames!{Style.RESET}")
+            return bool(player_skill.use(player, enemy))
         else:
-            enemy_skill.use(enemy, player)
+            printTypewriter(f"{Style.RED}* {enemy.name} interrupts {player.name}! {Style.BRIGHT_BLACK}{enemy_skill.startup} tick{'s' if enemy_skill.startup != 1 else ''} < {player_skill.startup} tick{'s' if player_skill.startup != 1 else ''}{Style.RESET}")
+            return bool(enemy_skill.use(enemy, player))
     
 class Punch(Skill):
     NAME: str = "punch"
     DESCRIPTION: str = "a weak punch. combo extends."
+    MESSAGE: str = "{entity} throws a punch at {target}."
     BASE_DAMAGE: int = 7
     BASE_STUN: int = 1 # 0 for combo ender, 1 for combo extender
     CRIT_CHANCE_PCT: int = 25 # % chance
@@ -196,5 +215,6 @@ class Punch(Skill):
     HYPERARMOR: bool = False
     LOCKED: bool = False
     UNLOCK_AT_MASTERY: int = 0
-    COOLDOWN: int = 1
+    COOLDOWN: int = 2
     STARTING_COOLDOWN: int = 0
+    ANIMATION: Animation = PUNCH_ANIMATION

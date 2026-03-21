@@ -1,5 +1,5 @@
 from __future__ import annotations
-import typing, importlib, importlib.util, importlib.machinery, pathlib, json, sys, math, gzip, shutil
+import typing, importlib, importlib.util, importlib.machinery, pathlib, json, sys, math, gzip, shutil, os
 
 from .constants import CORE_DIR, MODS_DIR, PUBLIC_DIR
 

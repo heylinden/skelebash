@@ -1,8 +1,6 @@
 from __future__ import annotations
 import typing
 
-if typing.TYPE_CHECKING:
-    from .entity import Entity
 
 class Trait:
     NAME: str = "unknown trait"
@@ -25,6 +23,7 @@ class Trait:
         return amount
     def afterDamageDealt(self, entity: Entity, amount: int, target: Entity) -> None:
         pass
+    
     def onTick(self, entity: Entity, skelebash: Skelebash) -> None: # type: ignore
         pass
 

@@ -24,6 +24,7 @@ class Room:
         return self
     def onEnter(self, skelebash: Skelebash) -> None: # type: ignore
         ...
+    
     def onTick(self, skelebash: Skelebash) -> None: # type: ignore
         for enemy in self.enemies:
             enemy.onTick(skelebash)

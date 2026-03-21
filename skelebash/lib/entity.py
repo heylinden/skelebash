@@ -5,7 +5,7 @@ from .item import Item
 from .itembundle import ItemBundle
 from .style import Style
 from .skill import Skill
-from .skillset import Armament, Art, Skillset, Stance
+from .skillset import Armament, Art, Skillset, Stance, FollowUp
 from .effect import Effect
 from .trait import Trait
 from .damagesource import DamageSource
@@ -17,10 +17,13 @@ class Entity:
     DESCRIPTION: str = "no description"
     HP: int = 100 # hit points
     MAX_HP: int = 100
+    HP_RECOVERY: int = 2 # hit points regenerated per turn
     ST: int = 100 # stamina
     MAX_ST: int = 100
+    ST_RECOVERY: int = 10 # stamina regenerated per turn
     MN: int = 0 # mana
     MAX_MN: int = 0
+    MN_RECOVERY: int = 10 # mana regenerated per turn
     BH: int = 20 # block health
     MAX_BH: int = 20
     BH_RECOVERY: int = 5 # block health regenerated per turn
@@ -46,10 +49,13 @@ class Entity:
         self.description: str = self.DESCRIPTION
         self.hp: int = self.HP
         self.max_hp: int = self.MAX_HP
+        self.hp_recovery: int = self.HP_RECOVERY
         self.st: int = self.ST
         self.max_st: int = self.MAX_ST
+        self.st_recovery: int = self.ST_RECOVERY
         self.mn: int = self.MN
         self.max_mn: int = self.MAX_MN
+        self.mn_recovery: int = self.MN_RECOVERY
         self.stun: int = 0
         self.strength_pct: int = self.STRENGTH_PCT
         self.defense_pct: int = self.DEFENSE_PCT
@@ -68,12 +74,11 @@ class Entity:
         self.effects: list[Effect] = []
         self.traits: list[Trait] = []
         self.brain: Brain | None = None
-
+    
     def calculate(self, attribute: str) -> int:
         value: int = getattr(self, attribute)
         for trait_or_effect in self.traits + self.effects:
             value = trait_or_effect.returnAttribute(attribute, value)
-        print(attribute, value)
         return value
     def heal(self, amount: int = None) -> "Entity":
         amount = amount or self.max_hp - self.hp
@@ -133,8 +138,13 @@ class Entity:
         if effects_str:
             effects_str = f" {Style.MAGENTA}{effects_str}{Style.RESET}"
         return f"{name_str} | {hp_str} | {st_str} | {mn_str}{effects_str}"
-
+    
     def onTick(self, skelebash: Skelebash) -> None: # type: ignore
+        self.heal(self.hp_recovery)
+        self.healStamina(self.st_recovery)
+        self.healMana(self.mn_recovery)
+        if self.stun >= 1:
+            self.stun -= 1
         for effect in self.effects[:]:
             effect.onTick(self, skelebash)
             if effect.duration <= 0:
@@ -143,8 +153,7 @@ class Entity:
             trait.onTick(self, skelebash)
         for itemstack in self.inventory.itemstacks:
             itemstack.onTick(skelebash)
-        for skill in self.skills.skills:
-            skill.onTick(skelebash)
+        self.skills.onTick(self, skelebash)
         if self.brain:
             self.brain.onTick(self, skelebash)
     def __repr__(self) -> str:
@@ -163,6 +172,7 @@ class Player(Entity):
     STANCE: Stance = Stance()
     ART: Art = Art()
     ARMAMENT: Armament = Armament()
+    FOLLOW_UP: FollowUp = FollowUp()
     SKILL_POINTS: int = 5
 
     def __init__(self) -> None:
@@ -170,4 +180,5 @@ class Player(Entity):
         self.stance: Stance = self.STANCE
         self.art: Art = self.ART
         self.armament: Armament = Armament()
+        self.follow_up: FollowUp = FollowUp()
         self.skill_points: int = self.SKILL_POINTS

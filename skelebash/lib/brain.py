@@ -2,18 +2,16 @@ from __future__ import annotations
 import typing
 import random
 
-if typing.TYPE_CHECKING:
-    from .entity import Entity
-    from .skill import Skill
-
 
 class Brain:
-    def decide(self, entity: Entity, target: Entity) -> typing.Optional["Skill"]:
+    def decide(self, entity: Entity, target: Entity) -> Skill | None:
         """Returns the skill the entity wants to use, or None to pass the turn."""
         return None
+    def onTick(self, entity: Entity, target: Entity) -> None:
+        ...
 
 class RandomBrain(Brain):
-    def decide(self, entity: Entity, target: Entity) -> typing.Optional["Skill"]:
+    def decide(self, entity: Entity, target: Entity) -> Skill | None:
         if entity.skills and entity.skills.skills:
             available_skills = [sk for sk in entity.skills.skills if sk.active_cooldown == 0]
             if available_skills:
@@ -21,7 +19,7 @@ class RandomBrain(Brain):
         return None
 
 class ComplexBrain(Brain):
-    def decide(self, entity: Entity, target: Entity) -> typing.Optional["Skill"]:
+    def decide(self, entity: Entity, target: Entity) -> Skill | None:
         available_skills = []
         if entity.skills and entity.skills.skills:
             available_skills.extend(entity.skills.skills)
