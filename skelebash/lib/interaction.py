@@ -13,6 +13,6 @@ class Interaction:
         self.enabled: bool = self.ENABLED
         self.require_interact: bool = self.REQUIRE_INTERACT
     def onInteract(self, entity: Entity) -> None:
-        ...
+        pass
     def onRoomEnemiesDefeated(self, room: Room) -> None: # type: ignore
-        ...
+        pass

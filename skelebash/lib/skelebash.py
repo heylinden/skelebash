@@ -3,7 +3,7 @@ import random, pathlib, json, typing, gzip
 try:
     import readline
 except (ModuleNotFoundError, ImportError):
-    ...
+    pass
 
 from .style import printStyle, Style, printCommandPrompt, clearScreen, enterToContinue, printTypewriter, prompt, printCentered
 from .entity import Player
@@ -11,12 +11,13 @@ from .constants import ADJECTIVES, LAST_OPENED_FILE, NOUNS, SAVES_DIR
 from .util import deserialize, serialize
 from .room import Room
 from .dungeon import Dungeon, PlaceholderDungeon
-from .character import Character
+from .character import Character, Balanced, chooseCharacter
 
 
 class Skelebash:
-    def __init__(self, player: Player | None = None, dungeon: Dungeon | None = None, save_id: str | None = None) -> None:
+    def __init__(self, player: Player | None = None, player_character: Character | None = None, dungeon: Dungeon | None = None, save_id: str | None = None) -> None:
         self.player: Player = player or Player()
+        self.player_character: Character = player_character or Balanced()
         self.dungeon: Dungeon = dungeon or PlaceholderDungeon()
         self.room: Room = self.dungeon.rooms[0].enter(self)
         self.new: bool = False
@@ -75,6 +76,11 @@ class Skelebash:
                 skelebash.saveGame()
                 with LAST_OPENED_FILE.open("w") as file:
                     file.write(skelebash.id)
+                character: Character | None = chooseCharacter(chars, choose_char)
+                if not character:
+                    exit(0)
+                skelebash.player_character = character
+                skelebash.player = character.entity()
                 return skelebash
             elif inp == "t":
                 skelebash: cls = cls()
@@ -82,6 +88,11 @@ class Skelebash:
                 skelebash.temp = True
                 with LAST_OPENED_FILE.open("w") as file:
                     file.write(skelebash.id)
+                character: Character | None = chooseCharacter(chars, choose_char)
+                if not character:
+                    exit(0)
+                skelebash.player_character = character
+                skelebash.player = character.entity()
                 if not choose:
                     printTypewriter(f"loaded temporary test run", 0.01)
                     enterToContinue()
@@ -180,7 +191,7 @@ class Skelebash:
 
                 printTypewriter("select skill:")
                 for i, sk in enumerate(selected_skillset.skills):
-                    printCommandPrompt(str(i+1), f"{Style.BRIGHT_BLACK if sk.active_cooldown else ''}{sk.name} ({sk.st_cost}st, {sk.mn_cost}mn)" + (f"{Style.BRIGHT_BLACK} | {sk.active_cooldown}{Style.RESET}" if sk.active_cooldown else ""))
+                    printCommandPrompt(str(i+1), f"{Style.BRIGHT_BLACK if sk.active_cooldown else ''}{sk.name} ({sk.st_cost}st, {sk.mn_cost}mn)" + (f"{Style.BRIGHT_BLACK} | {sk.active_cooldown} turn{'' if sk.active_cooldown == 1 else 's'}{Style.RESET}" if sk.active_cooldown else ""))
                 printCommandPrompt("b", "back")
 
                 while True:
@@ -199,7 +210,7 @@ class Skelebash:
                 else:
                     continue
             elif inp == "p":
-                ...
+                pass
             elif inp == "i":
                 printTypewriter("\n--- inventory ---", 0.01)
                 if not self.player.inventory.itemstacks:

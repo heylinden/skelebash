@@ -15,18 +15,26 @@ def skelepanel(skelebash: Skelebash, after: typing.Callable) -> None:  # type: i
         ok: bool = False
         try:
             with contextlib.redirect_stdout(stdout_buf), contextlib.redirect_stderr(stderr_buf):
-                value: typing.Any = (exec if entry.get().strip().startswith("@") else eval)(entry.get().strip().removeprefix("@").strip() or "None", {
+                context: dict[str, typing.Any] = {
                     "game": skelebash,
                     "selected": skelebash.selected,
                     "select": skelebash.select,
                     "player": skelebash.player,
+                    "player_character": skelebash.player_character,
+                    "pc": skelebash.player_character,
+                    "dungeon": skelebash.dungeon,
+                    "room": skelebash.room,
                     "enemy": lambda i: skelebash.room.enemies[i],
                     "pinv": skelebash.player.inventory,
                     "pinvitem": lambda i: skelebash.player.inventory[i].item,
                     "pheal": skelebash.player.heal,
                     "phealst": skelebash.player.healStamina,
                     "phealmn": skelebash.player.healMana
-                })
+                }
+                exec(before.get().strip(), context)
+                exec(before2.get().strip(), context)
+                exec(before3.get().strip(), context)
+                value: typing.Any = (exec if entry.get().strip().startswith("@") else eval)(entry.get().strip().removeprefix("@").strip() or "None", context)
                 ok = True
         except Exception: # type: ignore
             stderr_buf.write(traceback.format_exc())
@@ -49,6 +57,39 @@ def skelepanel(skelebash: Skelebash, after: typing.Callable) -> None:  # type: i
     entry.bind("<Return>", lambda _: run())
     entry.pack(fill="x", padx=10, pady=10)
 
+    before: tkinter.Entry = tkinter.Entry(root, font=("Arial", 13))
+    def select_all(event: tkinter.Event) -> str:
+        event.widget.select_range(0, "end")
+        event.widget.icursor("end")
+        return "break"
+    before.insert(0, "pass")
+    before.bind("<Control-a>", select_all)
+    before.bind("<Control-A>", select_all)
+    before.bind("<Return>", lambda _: run())
+    before.pack(fill="x", padx=10)
+
+    before2: tkinter.Entry = tkinter.Entry(root, font=("Arial", 13))
+    def select_all(event: tkinter.Event) -> str:
+        event.widget.select_range(0, "end")
+        event.widget.icursor("end")
+        return "break"
+    before2.insert(0, "pass")
+    before2.bind("<Control-a>", select_all)
+    before2.bind("<Control-A>", select_all)
+    before2.bind("<Return>", lambda _: run())
+    before2.pack(fill="x", padx=10)
+
+    before3: tkinter.Entry = tkinter.Entry(root, font=("Arial", 13))
+    def select_all(event: tkinter.Event) -> str:
+        event.widget.select_range(0, "end")
+        event.widget.icursor("end")
+        return "break"
+    before3.insert(0, "pass")
+    before3.bind("<Control-a>", select_all)
+    before3.bind("<Control-A>", select_all)
+    before3.bind("<Return>", lambda _: run())
+    before3.pack(fill="x", padx=10)
+    
     result: tkinter.Label = tkinter.Label(root, text="result will appear here", font=("Courier", 20, "italic bold"), anchor="w", justify="left")
     result.pack(fill="x", padx=10)
     

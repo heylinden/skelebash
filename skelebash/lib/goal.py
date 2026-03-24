@@ -19,4 +19,4 @@ class Goal:
         self.description: str = self.DESCRIPTION
         self.difficulty: str = self.DIFFICULTY or Goal.Difficulty.NONE
     def check(self) -> None:
-        ...
+        pass

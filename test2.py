@@ -15,7 +15,7 @@ def main() -> None:
         skelebash.player.inventory.add(VenomDagger()*1)
         skelebash.player.inventory.add(VenomFang()*30)
     while True:
-        ...
+        pass
 
 if "--skelepanel" in sys.argv:
     skelepanel(skelebash, main)

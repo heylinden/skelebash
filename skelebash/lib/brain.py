@@ -8,7 +8,7 @@ class Brain:
         """Returns the skill the entity wants to use, or None to pass the turn."""
         return None
     def onTick(self, entity: Entity, target: Entity) -> None:
-        ...
+        pass
 
 class RandomBrain(Brain):
     def decide(self, entity: Entity, target: Entity) -> Skill | None:

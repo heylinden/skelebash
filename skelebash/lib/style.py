@@ -93,7 +93,7 @@ def enterToContinue(show_text: bool = True) -> None:
         try:
             input()
         except (KeyboardInterrupt, EOFError):
-            ...
+            pass
 def toIdentifier(s: str) -> str:
     new_s: str = ""
     for char in s:

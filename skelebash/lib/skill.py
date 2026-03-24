@@ -55,6 +55,7 @@ class Skill:
         self.name: str = self.NAME
         self.description: str = self.DESCRIPTION
         self.base_damage: int = self.BASE_DAMAGE
+        self.damage: int = self.base_damage
         self.base_stun: int = self.BASE_STUN
         self.st_cost: int = self.ST_COST
         self.mn_cost: int = self.MN_COST
@@ -73,7 +74,7 @@ class Skill:
         ((lambda text: printTypewriter(text, 0.0005) )if first else printStyle)(f"{Style.YELLOW}{Style.BOLD}  stamina cost: {Style.RESET}{self.st_cost}st")
         ((lambda text: printTypewriter(text, 0.0005) )if first else printStyle)(f"{Style.BLUE}{Style.BOLD}  mana cost: {Style.RESET}{self.mn_cost}mn")
         ((lambda text: printTypewriter(text, 0.0005) )if first else printStyle)(f"{Style.BRIGHT_BLACK}  ---")
-        ((lambda text: printTypewriter(text, 0.0005) )if first else printStyle)(f"{Style.RED}{Style.BOLD}  base damage: {Style.RESET}{self.base_damage}")
+        ((lambda text: printTypewriter(text, 0.0005) )if first else printStyle)(f"{Style.RED}{Style.BOLD}  damage: {Style.RESET}{self.damage}")
         ((lambda text: printTypewriter(text, 0.0005) )if first else printStyle)(f"{Style.BRIGHT_ORANGE}{Style.BOLD}  base stun: {Style.RESET}{self.base_stun}{Style.BRIGHT_BLACK} " + ("(doesn't combo extend)" if not self.base_stun else "(combo extends)"))
         ((lambda text: printTypewriter(text, 0.0005) )if first else printStyle)(f"{Style.BRIGHT_BLACK}{Style.BOLD}  active/base cooldown: {Style.RESET}{self.active_cooldown}/{self.base_cooldown} turns")
     def use(self, entity: Entity, target: Entity) -> Skill.Used | None: # type: ignore
@@ -81,7 +82,7 @@ class Skill:
             case "pass":
                 printTypewriter(f"* {self.message.format(entity=entity.name, skill=self.name, target=target.name)}")
                 additional_messages: list[str] = []
-                damage: int = pct(self.base_damage, 100 + entity.calculate("strength_pct"))
+                damage: int = pct(self.damage, 100 + entity.calculate("strength_pct"))
                 damage -= pct(damage, target.calculate("defense_pct"))
                 whiffed: bool = random.randint(1, 100) < 15 - entity.calculate("concentration_pct")
                 if whiffed:
@@ -112,7 +113,7 @@ class Skill:
                 printTypewriter(f"* the attack deals {Style.RED}{damage} damage{Style.RESET} to {Style.BRIGHT_GREEN}{target.name}{Style.RESET}!")
                 printStyle(
                     f"{Style.BRIGHT_BLACK}damage<{damage}> = "
-                    f"base_damage<{self.base_damage}>"
+                    f"base_damage<{self.damage}>"
                     f"*(1+entity_strength<{entity.calculate('strength_pct')}%>)"
                     f"*(1-target_defense<{target.calculate('defense_pct')}%>)"
                     +"".join(additional_messages)
@@ -143,10 +144,9 @@ class Skill:
     def onTick(self, entity: Entity, skelebash: Skelebash) -> None: # type: ignore
         self.active_cooldown -= 1
     def __repr__(self) -> str:
-        return f"Skill('{self.name}', {self.base_damage}dmg, {self.base_stun}stun)"
+        return f"Skill('{self.name}', {self.damage}dmg, {self.base_stun}stun)"
 
 def playOut(player: Entity, player_skill: Skill | None, enemy: Entity, enemy_skill: Skill | None) -> bool: # type: ignore
-    
     if player_skill:
         printPanel(f"{player.name} used {player_skill.name}!")
         breakLine()
@@ -168,12 +168,12 @@ def playOut(player: Entity, player_skill: Skill | None, enemy: Entity, enemy_ski
     if not enemy_skill:
         player_skill.use(player, enemy)
         return True
-
-    startup_diff: int = abs(player_skill.startup - enemy_skill.startup)
-    if startup_diff <= 5:
+    if abs(player_skill.startup - enemy_skill.startup):
         enterToContinue()
         CLASH_ANIMATION.play()
         printTypewriter(f"{Style.YELLOW}* the attacks clashed!{Style.RESET}")
+        player_skill.active_cooldown = 2
+        enemy_skill.active_cooldown = 2
         return True
     elif player_skill.startup < enemy_skill.startup:
         if enemy_skill.hyperarmor:

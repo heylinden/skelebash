@@ -179,6 +179,6 @@ class Player(Entity):
         super().__init__()
         self.stance: Stance = self.STANCE
         self.art: Art = self.ART
-        self.armament: Armament = Armament()
-        self.follow_up: FollowUp = FollowUp()
+        self.armament: Armament = self.ARMAMENT
+        self.follow_up: FollowUp = self.FOLLOW_UP
         self.skill_points: int = self.SKILL_POINTS

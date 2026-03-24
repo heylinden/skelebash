@@ -9,4 +9,4 @@ class Keyset:
     DIGIT0: str = "012345"
     ZXCVGH: str = "zxcvgh"
 class KeysetError(Exception):
-    ...
+    pass

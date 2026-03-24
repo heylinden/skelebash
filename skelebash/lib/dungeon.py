@@ -10,7 +10,7 @@ class Dungeon:
         self.rooms: list[Room] = self.ROOMS
     
     def onTick(self, skelebash: Skelebash) -> None: # type: ignore
-        ...
+        pass
     def __repr__(self) -> str:
         return f"Dungeon(\n  '{self.name}',\n  rooms={'\n'.join(['  '+line for line in repr(self.rooms).split('\n') if line.strip()]).strip()}\n)"
 

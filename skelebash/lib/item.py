@@ -8,7 +8,8 @@ from .itemstack import ItemStack
 from .style import breakLine, clearScreen, enterToContinue, printCommandPrompt, printPanel, printCentered, printStyle, Style, printTypewriter, prompt
 from .animation import LEVEL_UP_ANIMATION, MASTERY_UP_ANIMATION
 from .goal import Goal
-from .util import public
+from .skill import Punch
+from .util import public, newFormula, newBuffs
 
 
 def colorBuff(buff: str) -> str:
@@ -26,10 +27,24 @@ def colorBuff(buff: str) -> str:
         "lifesteal damage": Style.RED + Style.BOLD,
         "lifesteal": Style.RED + Style.BOLD,
         "damage": Style.RED,
+        "defense": Style.BRIGHT_BLUE,
+        "precision": Style.BRIGHT_RED,
+        "force": Style.RED,
+        "concentration": Style.MAGENTA,
+        "agility": Style.BRIGHT_BLUE,
+        "durability": Style.BRIGHT_GREEN,
         "crit chance": Style.YELLOW + Style.BOLD,
+        "crit damage": Style.YELLOW + Style.BOLD,
         "health": Style.BRIGHT_RED,
+        "hp": Style.BRIGHT_RED,
         "stamina": Style.YELLOW,
+        "st": Style.YELLOW,
         "mana": Style.BRIGHT_BLUE,
+        "mn": Style.BRIGHT_BLUE,
+        "block health": Style.BRIGHT_GREEN,
+        "bh": Style.BRIGHT_GREEN,
+        "block strength": Style.BRIGHT_GREEN,
+        "block efficiency": Style.BRIGHT_GREEN,
         "mastery": Style.BLUE + Style.BOLD,
         "level": Style.YELLOW + Style.BOLD,
         "rarity": Style.BOLD,
@@ -61,6 +76,7 @@ class Item:
     UPGRADE_BUFFS: list[list[str]] = []
     GOALS: list[Goal] = []
     SKILLSET: Skillset | None = None
+    MXP_REWARDS_FOR_SKILLS: list[int] | None = None # recommended: [30, 30, 40, 45, 60, 80]
     class Rarity:
         NONE = "\033[38;5;244mnone\033[0m"
         COMMON = "\033[38;5;244mcommon (*)\033[0m"
@@ -70,7 +86,20 @@ class Item:
         LEGENDARY = "\033[38;5;208mlegendary (*****)\033[0m"
         MYTHIC = "\033[38;5;220mmythic (******)\033[0m"
         DIVINE = "\033[1;38;5;117mdivine (*******)\033[0m"
-    def __init__(self) -> None:
+    def __init__(self, enable_mxp_rewards: bool = True) -> None:
+        """
+        parameter: enable_mxp_rewards - if True (default), allow the constructor to add onto the
+                                        afterUse triggers of all skills provided in the skillset,
+                                        allowing for mXP gain when a skill is used. this is a core
+                                        mechanic and should be enabled unless the item is specifically
+                                        not meant to grant mXP via skills. this option is already
+                                        disabled if the item does not have a skillset and/or mXP
+                                        rewards defined. if you do not want your skills to be modified,
+                                        provide False.
+
+                                        your already defined afterUse triggers will remain and the
+                                        script to grant mXP will activate after.
+        """
         self.name: str = self.NAME
         self.description: str = self.DESCRIPTION
         self.rarity: str = self.RARITY or Item.Rarity.NONE
@@ -79,9 +108,21 @@ class Item:
         self.level: int = int(self.HAS_LEVELS)
         self.mastery: int = int(self.HAS_MASTERY) - 1
         self.upgrade_costs: list[ItemBundle] = self.UPGRADE_COSTS
-        self.upgrade_buffs: list[list[str]] = self.UPGRADE_BUFFS
+        if isinstance(self.UPGRADE_BUFFS, tuple) and len(self.UPGRADE_BUFFS) == 2:
+            self.upgrade_buffs, self.upgrade_stats = self.UPGRADE_BUFFS
+        else:
+            self.upgrade_buffs: list[list[str]] = self.UPGRADE_BUFFS
+            self.upgrade_stats: list[list[typing.Callable]] = [[] for _ in range(30)]
         self.goals: list[Goal] = self.GOALS
         self.skillset: Skillset | None = self.SKILLSET
+        self.mxp_rewards_for_skills: list[int] | None = self.MXP_REWARDS_FOR_SKILLS
+        if self.mxp_rewards_for_skills and self.skillset:
+            for i, skill in enumerate(self.skillset):
+                skill.onUse = lambda entity, target, used: (
+                    skill.afterUse(entity, target, used),
+                    self.addMastery(self.mxp_rewards_for_skills[i], entity)
+                )
+
     def calculateUpgradeCosts(self) -> list[ItemBundle]:
         upgrade_costs: list[ItemBundle] = []
         if not self.upgrade_costs:
@@ -148,6 +189,10 @@ class Item:
                         self.onUpgrade(entity)
                         for itemstack in itembundle:
                             entity.inventory.remove(itemstack)
+                        
+                        for stat_modifier in self.upgrade_stats[self.level]:
+                            stat_modifier(self.skillset)
+                            
                         self.level += 1
             elif inp == "g" and self.goals and allow_goals_view:
                 for goal in self.goals:
@@ -192,7 +237,11 @@ class Item:
     def masteryUp(self, entity: Entity) -> None: # type: ignore
         self.addMastery(100, entity)
     def levelUp(self, n: int, entity: Entity) -> None: # type: ignore
-        self.level += n
+        for _ in range(n):
+            if self.level < 30:
+                for stat_modifier in self.upgrade_stats[self.level]:
+                    stat_modifier(self.skillset)
+                self.level += 1
         self.onUpgrade(entity)
     def equipAsArmament(self, entity: Entity) -> None: # type: ignore
         entity.armament = self.skillset
@@ -209,3 +258,51 @@ class Item:
             goal.onTick(skelebash)
     def __repr__(self) -> str:
         return f"Item('{self.name}')"
+
+class IronChip(Item):
+    NAME: str = "iron chip"
+    DESCRIPTION: str = "a chip of iron."
+    RARITY: str | None = Item.Rarity.UNCOMMON
+    USABLE: bool = False
+    USE_TEXT: str = "use"
+    HAS_LEVELS: bool = False
+    HAS_MASTERY: bool = False
+    UPGRADE_COSTS: list[ItemBundle] = []
+    UPGRADE_BUFFS: list[list[str]] = []
+    GOALS: list[Goal] = []
+    SKILLSET: Skillset | None = None
+
+class Greatsword(Item):
+    NAME: str = "greatsword"
+    DESCRIPTION: str = "a heavy sword with high-damaging but slow moves. comes with 'warrior' character."
+    RARITY: str | None = Item.Rarity.UNCOMMON
+    USABLE: bool = True
+    USE_TEXT: str = "equip"
+    HAS_LEVELS: bool = True
+    HAS_MASTERY: bool = True
+    UPGRADE_COSTS: list[ItemBundle] = newFormula(
+        IronChip,
+        "round(1 * 1.073 ** (level - 1))"
+    )
+    UPGRADE_BUFFS: list[list[str]] = newBuffs({
+        2: (
+            "+{}% damage",
+            ("starts", 2),
+            ("stat", "Punch", "base_damage"),
+            ("scaling", "x+2"),
+        ),
+        6: (
+            "+{}% crit damage",
+            ("starts", 10),
+            ("stat", "Punch", "crit_damage"),
+            ("scaling", "x+2")
+        ),
+        11: (
+            "+{}% crit chance",
+            ("starts", 5),
+            ("stat", "Punch", "CRIT_CHANCE_PCT"),
+            ("scaling", "x+1")
+        )
+    })
+    GOALS: list[Goal] = []
+    SKILLSET: Skillset | None = Skillset(Punch())

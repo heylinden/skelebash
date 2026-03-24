@@ -23,7 +23,7 @@ class Room:
         self.onEnter(skelebash)
         return self
     def onEnter(self, skelebash: Skelebash) -> None: # type: ignore
-        ...
+        pass
     
     def onTick(self, skelebash: Skelebash) -> None: # type: ignore
         for enemy in self.enemies:

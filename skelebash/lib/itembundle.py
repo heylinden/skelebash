@@ -47,7 +47,6 @@ class ItemBundle:
         self.update()
     def update(self) -> None:
         self.itemstacks = countItems(*self.itemstacks)
-    
     def onTick(self, skelebash: Skelebash) -> None: # type: ignore
         self.update()
         for itemstack in self.itemstacks:
