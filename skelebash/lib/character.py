@@ -139,7 +139,7 @@ class Ninja(Character):
         BH: int = 20
         MAX_BH: int = 20
         STRENGTH_PCT: int = -30
-        BLOCK_EFFICIENCY_PCT: int = 90
+        BLOCK_EFFICIENCY_PCT: int = 75
         AGILITY_PCT: int = 30
         def __init__(self) -> None:
             super().__init__()
@@ -183,7 +183,7 @@ class Sorcerer(Character):
         MAX_MN: int = 100
         BH: int = 20
         MAX_BH: int = 20
-        BLOCK_EFFICIENCY_PCT: int = 90
+        BLOCK_EFFICIENCY_PCT: int = 40
         DURABILITY_PCT: int = 50
         ARMAMENT: Armament = Stick.SKILLSET
         INVENTORY: ItemBundle = ItemBundle(ItemStack(Stick(), 1))

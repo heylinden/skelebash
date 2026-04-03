@@ -69,7 +69,7 @@ class Skelebash:
                 return skelebash
             elif inp == "n":
                 if not choose:
-                    printTypewriter("welcome to skelebash! if this is your first time playing, you can refer to the help/tutorial document here: https://github.com/timespilot/skelebash/blob/master/HELP.md.", 0.01)
+                    printTypewriter("welcome to skelebash! if this is your first time playing, you can refer to the help/tutorial document here: https://github.com/heylinden/skelebash/blob/master/HELP.md.", 0.01)
                     enterToContinue()
                 clearScreen()
                 skelebash: cls = cls()
@@ -145,7 +145,7 @@ class Skelebash:
             printCommandPrompt("p", "pass", (lambda text: printTypewriter(text, 0.005) )if first else printStyle)
             printCommandPrompt("i", "inventory", (lambda text: printTypewriter(text, 0.005) )if first else printStyle)
             printCommandPrompt("e", "effects", (lambda text: printTypewriter(text, 0.005) )if first else printStyle)
-            printCommandPrompt("s", "skill tree", (lambda text: printTypewriter(text, 0.005) )if first else printStyle)
+            printCommandPrompt("s", "skill tree/attributes", (lambda text: printTypewriter(text, 0.005) )if first else printStyle)
             printCommandPrompt("t", "traits", (lambda text: printTypewriter(text, 0.005) )if first else printStyle)
             printCommandPrompt("?", "help", (lambda text: printTypewriter(text, 0.005) )if first else printStyle)
             if not self.temp:
@@ -274,44 +274,89 @@ class Skelebash:
                 enterToContinue()
                 continue
             elif inp == "s":
+                skill_tree_first: bool = True
                 while True:
                     clearScreen()
-                    printTypewriter("\n--- SKILL TREE / ATTRIBUTES ---", 0.005)
-                    printTypewriter(f"Available Skill Points: {Style.YELLOW}{self.player.skill_points}{Style.RESET}", 0.005)
-                    printCommandPrompt("1", f"upgrade max HP (currently: {self.player.max_hp}) -> +10")
-                    printCommandPrompt("2", f"upgrade max SP (currently: {self.player.max_st}) -> +10")
-                    printCommandPrompt("3", f"upgrade max MN (currently: {self.player.max_mn}) -> +5")
-                    printCommandPrompt("4", f"upgrade Strength (currently: {self.player.strength_pct}%) -> +5%")
-                    printCommandPrompt("5", f"upgrade Defense (currently: {self.player.defense_pct}%) -> +5%")
-                    printCommandPrompt("b", "back")
+                    ((lambda s: printTypewriter(s, 0.005)) if skill_tree_first else printStyle)("\n--- skill tree / attributes ---")
+                    ((lambda s: printTypewriter(s, 0.005)) if skill_tree_first else printStyle)(f"* available skill points: {Style.YELLOW}{self.player.skill_points}{Style.RESET}")
+                    printCommandPrompt("1", f"{Style.BRIGHT_RED}upgrade max hp (hit points/health):                          {self.player.max_hp}hp -> {self.player.max_hp+2}hp", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("2", f"{Style.YELLOW}upgrade max st (stamina):                                    {self.player.max_st}st -> {self.player.max_st+2}st", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("3", f"{Style.YELLOW}upgrade st recovery:                                         {self.player.st_recovery}st/turn -> {self.player.st_recovery+1}st/turn", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("4", f"{Style.BRIGHT_BLUE}upgrade max mn (mana):                                       {self.player.max_mn}mn -> {self.player.max_mn+2}mn", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)   
+                    printCommandPrompt("5", f"{Style.BRIGHT_BLUE}upgrade mn recovery:                                         {self.player.mn_recovery}mn/turn -> {self.player.mn_recovery+1}mn/turn", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("6", f"{Style.BRIGHT_GREEN}upgrade max bh (block health):                               {self.player.max_bh}bh -> {self.player.max_bh+2}bh", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("7", f"{Style.BRIGHT_GREEN}upgrade bh recovery:                                         {self.player.bh_recovery}bh/turn -> {self.player.bh_recovery+1}bh/turn", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("8", f"{Style.RED}upgrade strength (dealt damage increase):                    {self.player.strength_pct}% -> {self.player.strength_pct+5}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("9", f"{Style.BLUE}upgrade defense (taken damage reduction):                    {self.player.defense_pct}% -> {self.player.defense_pct+5}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("10", f"{Style.GREEN}upgrade precision (dealt crit chance increase):             {self.player.precision_pct}% -> {self.player.precision_pct+5}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("11", f"{Style.YELLOW}upgrade force (dealt crit damage increase):                 {self.player.force_pct}% -> {self.player.force_pct+5}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("12", f"{Style.MAGENTA}upgrade concentration (dealt whiff chance reduction):       {self.player.concentration_pct}% -> {self.player.concentration_pct+5}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("13", f"{Style.ORANGE}upgrade agility (taken whiff chance increase):              {self.player.agility_pct}% -> {self.player.agility_pct+5}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("14", f"{Style.BRIGHT_BLACK}upgrade durability (taken crit chance reduction):           {self.player.durability_pct}% -> {self.player.durability_pct+5}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("15", f"{Style.BRIGHT_GREEN}upgrade block strength (outgoing block damage increase):    {self.player.block_strength_pct}% -> {self.player.block_strength_pct+10}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("17", f"{Style.BRIGHT_GREEN}upgrade block efficiency (incoming block damage reduction): {self.player.block_efficiency_pct}% -> {self.player.block_efficiency_pct+5}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("18", f"{Style.BRIGHT_BLUE}upgrade hyperarmor strength (outgoing hyperarmor increase): {self.player.hyperarmor_strength_pct}% -> {self.player.hyperarmor_strength_pct+10}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("19", f"{Style.BRIGHT_BLUE}upgrade hyperarmor defense (incoming hyperarmor reduction): {self.player.hyperarmor_defense_pct}% -> {self.player.hyperarmor_defense_pct+5}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("20", f"{Style.REDDISH_PINK}upgrade super gain: {self.player.super_gain_pct}% -> {self.player.super_gain_pct+10}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)                    
+                    printCommandPrompt("b", "back", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
                     
+                    skill_tree_first = False
+
                     s_inp = prompt("upgrade", self)
                     if s_inp == "b":
                         break
                     
                     if self.player.skill_points <= 0:
-                        printTypewriter(f"{Style.RED}not enough skill points!{Style.RESET}")
+                        printTypewriter(f"{Style.RED}* not enough skill points!{Style.RESET}")
                         enterToContinue()
                         continue
                         
-                    if s_inp == "1":
-                        self.player.max_hp += 10
-                        self.player.hp += 10
-                    elif s_inp == "2":
-                        self.player.max_st += 10
-                        self.player.st += 10
-                    elif s_inp == "3":
-                        self.player.max_mn += 5
-                        self.player.mn += 5
-                    elif s_inp == "4":
-                        self.player.strength_pct += 5
-                    elif s_inp == "5":
-                        self.player.defense_pct += 5
-                    else:
-                        continue
+                    match s_inp:
+                        case "1":
+                            self.player.max_hp += 2
+                        case "2":
+                            self.player.hp_recovery += 1
+                        case "3":
+                            self.player.max_st += 2
+                        case "4":
+                            self.player.st_recovery += 1
+                        case "5":
+                            self.player.max_mn += 2
+                        case "6":
+                            self.player.mn_recovery += 1
+                        case "7":
+                            self.player.max_bh += 2
+                        case "8":
+                            self.player.bh_recovery += 1
+                        case "9":
+                            self.player.strength_pct += 5
+                        case "10":
+                            self.player.defense_pct += 5
+                        case "11":
+                            self.player.precision_pct += 5
+                        case "12":
+                            self.player.force_pct += 5
+                        case "13":
+                            self.player.concentration_pct += 5
+                        case "14":
+                            self.player.agility_pct += 5
+                        case "15":
+                            self.player.durability_pct += 5
+                        case "16":
+                            self.player.block_strength_pct += 10
+                        case "17":
+                            self.player.block_efficiency_pct += 5
+                        case "18":
+                            self.player.hyperarmor_strength_pct += 10
+                        case "19":
+                            self.player.hyperarmor_defense_pct += 5
+                        case "20":
+                            self.player.super_gain_pct += 10
+                        case _:
+                            continue
                         
                     self.player.skill_points -= 1
-                    printTypewriter(f"{Style.BRIGHT_GREEN}Attribute upgraded!{Style.RESET}")
+                    printTypewriter(f"{Style.BRIGHT_GREEN}* attribute upgraded!{Style.RESET}")
                     enterToContinue()
                 continue
             elif inp == "?":

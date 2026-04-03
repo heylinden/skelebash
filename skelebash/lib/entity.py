@@ -37,7 +37,7 @@ class Entity:
     DURABILITY_PCT: int = 0 # % incoming crit chance reduction
     
     BLOCK_STRENGTH_PCT: int = 0 # % outgoing damage to block increase
-    BLOCK_EFFICIENCY_PCT: int = 75 # % incoming damage to block reduction
+    BLOCK_EFFICIENCY_PCT: int = 50 # % incoming damage to block reduction
 
     HYPERARMOR_STRENGTH_PCT: int = 50 # % outgoing damage to hyperarmor increase
     HYPERARMOR_DEFENSE_PCT: int = 0 # % incoming damage to hyperarmor reduction
@@ -210,7 +210,7 @@ class Player(Entity):
         self.skill_points: int = self.SKILL_POINTS
     def dealDamage(self, amount: int, target: Entity, source: DamageSource | tuple[DamageSource, typing.Any] = DamageSource.UNKNOWN) -> int:
         dealt = super().dealDamage(amount, target, source)
-        self.super = min(self.max_super, pct(self.super + (dealt * 2), self.super_gain_pct))
+        self.super = min(self.max_super, pct(self.super + dealt, self.super_gain_pct))
         return dealt
     def takeDamage(self, amount: int, source: typing.Any) -> int:
         taken = super().takeDamage(amount, source)
