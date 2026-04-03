@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+
 class DamageSource:
     SKILL: str = "skill"
     EFFECT: str = "effect"

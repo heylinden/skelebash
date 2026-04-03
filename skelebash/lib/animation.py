@@ -10,6 +10,9 @@ class Animation:
         self.frames: list[str] = list(frames)
         self.name: str = name
         self.delay: float = delay
+    def __matmul__(self, delay: int) -> "Animation":
+        animation: Animation = self.__class__(*self.frames, name=self.name, delay=delay)
+        return animation
     @classmethod
     def get(cls, name: str, delay: float = 0.1, **kwargs: typing.Any) -> "Animation":
         frames: list[str] = []

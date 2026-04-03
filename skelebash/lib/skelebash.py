@@ -7,6 +7,7 @@ except (ModuleNotFoundError, ImportError):
 
 from .style import printStyle, Style, printCommandPrompt, clearScreen, enterToContinue, printTypewriter, prompt, printCentered
 from .entity import Player
+from .effect import ArtAmplifiedEffect
 from .constants import ADJECTIVES, LAST_OPENED_FILE, NOUNS, SAVES_DIR
 from .util import deserialize, serialize
 from .room import Room
@@ -115,7 +116,6 @@ class Skelebash:
             turn_n += 1
             clearScreen()
             
-            # Print VS Layout
             printPanel(self.player.getInfoBar(), printer=printCentered)
             breakLine()
             printCentered(f"{Style.BOLD}{Style.RED}--- VS ---{Style.RESET}")
@@ -124,8 +124,8 @@ class Skelebash:
             for trait_or_effect in self.player.traits + self.player.effects:
                 trait_or_effect.onTurnStart(self.player)
 
-            for enemy in self.room.enemies:
-                printPanel(enemy.getInfoBar(), printer=printCentered)
+            for i, enemy in enumerate(self.room.enemies):
+                printPanel(enemy.getInfoBar(fighting=i == 0), printer=printCentered)
                 breakLine()
 
             if self.player.hp <= 0:
@@ -154,11 +154,13 @@ class Skelebash:
             if not self.temp:
                 printCommandPrompt("sq", "save and quit", (lambda text: printTypewriter(text, 0.005) )if first else printStyle)
 
+            breakLine()
+
             first = False
             if not self.player.stun:
                 inp: str = prompt("", self)
             else:
-                printTypewriter(f"{self.player.name} is stunned!")
+                printTypewriter(f"* {self.player.name} is stunned!")
                 inp = "p"
 
             player_skill = None
@@ -166,10 +168,11 @@ class Skelebash:
 
             if inp == "a":
                 printTypewriter("select category:")
-                printCommandPrompt("1", f"{Style.BRIGHT_BLACK if not self.player.stance.skills else ''}stance ({len(self.player.stance.skills)} skill{'' if len(self.player.stance.skills) == 1 else 's'}){Style.RESET}")
-                printCommandPrompt("2", f"{Style.BRIGHT_BLACK if not self.player.art.skills else ''}art ({len(self.player.art.skills)} skill{'' if len(self.player.art.skills) == 1 else 's'}){Style.RESET}")
-                printCommandPrompt("3", f"{Style.BRIGHT_BLACK if not self.player.armament.skills else ''}armament ({len(self.player.armament.skills)} skill{'' if len(self.player.armament.skills) == 1 else 's'}){Style.RESET}")
-                printCommandPrompt("4", f"{Style.BRIGHT_BLACK if not self.player.follow_up.skills else ''}follow-up ({len(self.player.follow_up.skills)} skill{'' if len(self.player.follow_up.skills) == 1 else 's'}){Style.RESET}")
+                printCommandPrompt("1", f"{Style.BRIGHT_BLACK if not self.player.stance.skills else ''}stance {'['+self.player.stance.name+']' if self.player.stance.name else ''} ({len(self.player.stance.skills)} skill{'' if len(self.player.stance.skills) == 1 else 's'}){Style.RESET}")
+                printCommandPrompt("2", f"{Style.BRIGHT_BLACK if not self.player.art.skills else ''}art {'['+self.player.art.name+']' if self.player.art.name else ''} ({len(self.player.art.skills)} skill{'' if len(self.player.art.skills) == 1 else 's'}){Style.RESET}")
+                printCommandPrompt("3", f"{Style.BRIGHT_BLACK if not self.player.armament.skills else ''}armament {'['+self.player.armament.name+']' if self.player.armament.name else ''} ({len(self.player.armament.skills)} skill{'' if len(self.player.armament.skills) == 1 else 's'}){Style.RESET}")
+                printCommandPrompt("4", f"{Style.BRIGHT_BLACK if not self.player.follow_up.skills else ''}follow-up {'['+self.player.follow_up.name+']' if self.player.follow_up.name else ''} ({len(self.player.follow_up.skills)} skill{'' if len(self.player.follow_up.skills) == 1 else 's'}){Style.RESET}")
+                printCommandPrompt("5", f"{Style.BRIGHT_BLACK if not self.player.reflex.skills else ''}reflex {'['+self.player.reflex.name+']' if self.player.reflex.name else ''} ({len(self.player.reflex.skills)} skill{'' if len(self.player.reflex.skills) == 1 else 's'}){Style.RESET}")
                 printCommandPrompt("b", "back")
                 while True:
                     cat_inp = prompt("attack", self)
@@ -178,7 +181,7 @@ class Skelebash:
                 if cat_inp == "b":
                     continue
                 
-                selected_skillset: Stance | Art | Armament | None = {"1": self.player.stance, "2": self.player.art, "3": self.player.armament, "4": self.player.follow_up}.get(cat_inp)
+                selected_skillset: Stance | Art | Armament | Reflex | FollowUp | None = {"1": self.player.stance, "2": self.player.art, "3": self.player.armament, "4": self.player.follow_up, "5": self.player.reflex}.get(cat_inp)
                 
                 if not selected_skillset:
                     printTypewriter("that category does not exist.")
@@ -190,8 +193,8 @@ class Skelebash:
                     continue
 
                 printTypewriter("select skill:")
-                for i, sk in enumerate(selected_skillset.skills):
-                    printCommandPrompt(str(i+1), f"{Style.BRIGHT_BLACK if sk.active_cooldown else ''}{sk.name} ({sk.st_cost}st, {sk.mn_cost}mn)" + (f"{Style.BRIGHT_BLACK} | {sk.active_cooldown} turn{'' if sk.active_cooldown == 1 else 's'}{Style.RESET}" if sk.active_cooldown else ""))
+                for i, skill in enumerate(selected_skillset.skills):
+                    printCommandPrompt(str(i+1), f"{Style.REDDISH_PINK if skill.super_cost == 100 else ''}{Style.BRIGHT_BLACK if skill.active_cooldown else ''}{skill.name} {Style.BRIGHT_BLACK}[{skill.startup}f]{Style.RESET} ({skill.st_cost}st, {skill.mn_cost}mn{(', '+str(skill.super_cost)+'sp') if skill.super_cost else ''})" + (f"{Style.BRIGHT_BLACK} | {skill.active_cooldown} turn{'' if skill.active_cooldown == 1 else 's'}{Style.RESET}" if skill.active_cooldown else ""))
                 printCommandPrompt("b", "back")
 
                 while True:
@@ -202,8 +205,31 @@ class Skelebash:
                     continue
                 if sk_inp.isdigit() and 1 <= int(sk_inp) <= len(selected_skillset.skills):
                     skill: Skill = selected_skillset.skills[int(sk_inp)-1]
+                    st_cost = skill.st_cost
+                    mn_cost = skill.mn_cost
+                    super_cost = skill.super_cost
+                    for effect in self.player.effects:
+                        if isinstance(effect, ArtAmplifiedEffect) and effect.boost_type in ["stamina", "ultimate", "all"]:
+                            if any(isinstance(s, self.__class__) for s in entity.art.skills):
+                                st_cost = 0
+                                printTypewriter(f"{Style.BRIGHT_GREEN}* stamina cost reduced to 0 by focus!{Style.RESET}")
+                                break
+                    if self.player.super < super_cost:
+                        printTypewriter(f"{Style.RED}* not enough super. ({self.player.super} / {super_cost})")
+                        enterToContinue()
+                        continue
+                    if self.player.st < st_cost:
+                        printTypewriter(f"{Style.RED}* not enough stamina. ({self.player.st} / {st_cost})")
+                        enterToContinue()
+                        continue
+                    if self.player.mn < mn_cost:
+                        printTypewriter(f"{Style.RED}* not enough mana. ({self.player.mn} / {mn_cost})")
+                        enterToContinue()
+                        continue
+                    self.player.st -= st_cost
+                    self.player.mn -= mn_cost
                     if skill.active_cooldown:
-                        printTypewriter(f"{Style.BRIGHT_BLACK}skill is on cooldown!{Style.RESET}")
+                        printTypewriter(f"{Style.BRIGHT_BLACK}* skill is on cooldown for {skill.active_cooldown} more turns.{Style.RESET}")
                         enterToContinue()
                         continue
                     player_skill = skill
@@ -214,7 +240,7 @@ class Skelebash:
             elif inp == "i":
                 printTypewriter("\n--- inventory ---", 0.01)
                 if not self.player.inventory.itemstacks:
-                    printTypewriter(f"{Style.BRIGHT_BLACK}your inventory is empty.")
+                    printTypewriter(f"{Style.BRIGHT_BLACK}* your inventory is empty.")
                     enterToContinue()
                     continue
                 for i, stack in enumerate(self.player.inventory.itemstacks):

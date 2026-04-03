@@ -2,7 +2,8 @@ from __future__ import annotations
 import typing
 
 from .style import printTypewriter, Style
-from .util import pct
+from .util import pct, incrpct, decrpct
+from .damagesource import DamageSource
 
 if typing.TYPE_CHECKING:
     from .entity import Entity
@@ -18,6 +19,7 @@ class Effect:
         self.level: int = level
         self.duration: int = duration
         self.max_duration: int = duration
+        self.boost_type: str = "all" # default
     def returnAttribute(self, attribute: str, value: int) -> int:
         return value
     @classmethod
@@ -26,12 +28,11 @@ class Effect:
         entity.addEffect(effect)
         return effect
     def onApply(self, entity: Entity) -> None:
-        printTypewriter(f"{entity.name} was afflicted with {self.name}!")
-    
+        printTypewriter(f"* {entity.name} was afflicted with {self.name}!")
     def onTick(self, entity: Entity, skelebash: Skelebash) -> None: # type: ignore
         self.duration -= 1
     def onRemove(self, entity: Entity) -> None:
-        printTypewriter(f"{entity.name} recovered from {self.name}.")
+        printTypewriter(f"* {entity.name} recovered from {self.name}.")
     def onTurnStart(self, entity: Entity) -> None:
         pass
     def beforeDamageTaken(self, entity: Entity, amount: int, source: typing.Any) -> int:
@@ -62,4 +63,52 @@ class HyperarmorEffect(Effect):
     DESCRIPTION: str = "increases damage taken when interrupted during hyperarmor."
     SHOW: bool = False
     def beforeDamageTaken(self, entity: Entity, amount: int, source: typing.Any) -> int:
-        return pct(pct(amount, 100 + entity.calculate("hyperarmor_strength_pct")), 100 - entity.calculate("hyperarmor_defense_pct"))
+        return pct(incrpct(amount, entity.calculate("hyperarmor_strength_pct")), decrpct(100, entity.calculate("hyperarmor_defense_pct")))
+
+class ArtAmplifiedEffect(Effect):
+    NAME: str = "art amplified"
+    DESCRIPTION: str = "The next Art skill used will have massively increased damage and precision."
+    SHOW: bool = True
+
+    def beforeDamageDealt(self, entity: Entity, amount: int, target: Entity, source: typing.Any) -> int:
+        from .skillset import Art
+        if isinstance(source, tuple) and source[0] == DamageSource.SKILL:
+            used = source[1]
+            if any(isinstance(s, used.skill.__class__) for s in entity.art.skills):
+                if self.boost_type in ["damage", "ultimate", "all"]:
+                    printTypewriter(f"{Style.BRIGHT_BLUE}{Style.BOLD}* amplification active! (+100% damage){Style.RESET}")
+                    amount = incrpct(amount, 100)
+                used.crit = True 
+        return amount
+
+    def returnAttribute(self, attribute: str, value: int) -> int:
+        if self.boost_type in ["precision", "all"] and attribute == "precision_pct":
+            return value + 50
+        if self.boost_type in ["critical", "all"] and attribute == "force_pct":
+            return value + 100
+        return value
+
+    def afterDamageDealt(self, entity: Entity, amount: int, target: Entity, source: typing.Any) -> None:
+        from .skillset import Art
+        if isinstance(source, tuple) and source[0] == DamageSource.SKILL:
+            used = source[1]
+            if any(isinstance(s, used.skill.__class__) for s in entity.art.skills):
+                entity.removeEffect(self)
+
+class RageEffect(Effect):
+    NAME: str = "rage"
+    DESCRIPTION: str = "Increases damage dealt by 50%, but also increases damage taken by 25%."
+    SHOW: bool = True
+    def beforeDamageDealt(self, entity: Entity, amount: int, target: Entity, source: typing.Any) -> int:
+        return incrpct(amount, 50)
+    def beforeDamageTaken(self, entity: Entity, amount: int, source: typing.Any) -> int:
+        return incrpct(amount, 25)
+
+class BurstEffect(Effect):
+    NAME: str = "burst i-frames"
+    DESCRIPTION: str = "Provides i-frames for the turn."
+    SHOW: bool = False
+    def onApply(self, entity: Entity) -> None:
+        entity.iframes = True
+    def onRemove(self, entity: Entity) -> None:
+        entity.iframes = False

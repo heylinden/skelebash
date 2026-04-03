@@ -18,14 +18,12 @@ class Trait:
         return amount
     def afterDamageTaken(self, entity: Entity, amount: int, source: typing.Any) -> None:
         pass
-    def beforeDamageDealt(self, entity: Entity, amount: int, target: Entity) -> int:
+    def beforeDamageDealt(self, entity: Entity, amount: int, target: Entity, source: typing.Any) -> int:
         """Modify damage before it is dealt. Return the new damage amount."""
         return amount
-    def afterDamageDealt(self, entity: Entity, amount: int, target: Entity) -> None:
+    def afterDamageDealt(self, entity: Entity, amount: int, target: Entity, source: typing.Any) -> None:
         pass
-    
     def onTick(self, entity: Entity, skelebash: Skelebash) -> None: # type: ignore
         pass
-
     def __repr__(self) -> str:
         return f"Trait('{self.name}')"

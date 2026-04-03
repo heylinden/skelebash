@@ -21,7 +21,7 @@ def main() -> None:
         skelebash.player.skills.skills.append(Punch())
         skelebash.player.inventory.add(VenomDagger()*1)
         skelebash.player.inventory.add(VenomFang()*30)
-        skelebash.player.inventory.add(IronChip()*10)
+        skelebash.player.inventory.add(IronChip()*100)
         slime: Slime = Slime()
         skelebash.room.enemies = [slime]
         skelebash.saveGame()

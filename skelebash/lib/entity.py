@@ -5,11 +5,12 @@ from .item import Item
 from .itembundle import ItemBundle
 from .style import Style
 from .skill import Skill
-from .skillset import Armament, Art, Skillset, Stance, FollowUp
+from .skillset import Armament, Art, Skillset, Stance, FollowUp, Reflex
 from .effect import Effect
 from .trait import Trait
 from .damagesource import DamageSource
 from .brain import Brain
+from .util import pct
 
 
 class Entity:
@@ -17,7 +18,7 @@ class Entity:
     DESCRIPTION: str = "no description"
     HP: int = 100 # hit points
     MAX_HP: int = 100
-    HP_RECOVERY: int = 2 # hit points regenerated per turn
+    HP_RECOVERY: int = 0 # hit points regenerated per turn
     ST: int = 100 # stamina
     MAX_ST: int = 100
     ST_RECOVERY: int = 10 # stamina regenerated per turn
@@ -30,7 +31,7 @@ class Entity:
     STRENGTH_PCT: int = 0 # % outgoing damage increase
     DEFENSE_PCT: int = 0 # % incoming damage reduction
     PRECISION_PCT: int = 0 # % outgoing crit chance increase
-    FORCE_PCT: int = 100 # % outgoing crit damage increase
+    FORCE_PCT: int = 50 # % outgoing crit damage increase
     CONCENTRATION_PCT: int = 0 # % outgoing whiff chance reduction
     AGILITY_PCT: int = 0 # % incoming whiff chance increase
     DURABILITY_PCT: int = 0 # % incoming crit chance reduction
@@ -40,6 +41,9 @@ class Entity:
 
     HYPERARMOR_STRENGTH_PCT: int = 50 # % outgoing damage to hyperarmor increase
     HYPERARMOR_DEFENSE_PCT: int = 0 # % incoming damage to hyperarmor reduction
+    
+    STUN: int = 0
+    IFRAMES: bool = False
 
     INVENTORY: ItemBundle = ItemBundle()
     SKILLS: Skillset = Skillset()
@@ -56,7 +60,9 @@ class Entity:
         self.mn: int = self.MN
         self.max_mn: int = self.MAX_MN
         self.mn_recovery: int = self.MN_RECOVERY
-        self.stun: int = 0
+        self.bh: int = self.BH
+        self.max_bh: int = self.MAX_BH
+        self.bh_recovery: int = self.BH_RECOVERY
         self.strength_pct: int = self.STRENGTH_PCT
         self.defense_pct: int = self.DEFENSE_PCT
         self.precision_pct: int = self.PRECISION_PCT
@@ -68,7 +74,11 @@ class Entity:
         self.block_efficiency_pct: int = self.BLOCK_EFFICIENCY_PCT
         self.hyperarmor_strength_pct: int = self.HYPERARMOR_STRENGTH_PCT
         self.hyperarmor_defense_pct: int = self.HYPERARMOR_DEFENSE_PCT
+        self.hyperarmor: int = 0
+        self.stun: int = self.STUN
+        self.iframes: bool = self.IFRAMES
         self.inventory: ItemBundle = self.INVENTORY
+        self.used: list[Skill.Used] = []
         self.skills: Skillset = self.SKILLS
         self.last_skill_used: Skill.Used | None = None
         self.effects: list[Effect] = []
@@ -94,12 +104,8 @@ class Entity:
         return self
 
     def addEffect(self, effect: Effect) -> None:
-        for trait_or_effect in self.traits + self.effects:
-            effect = trait_or_effect.beforeEffectApplied(self, effect)
         self.effects.append(effect)
         effect.onApply(self)
-        for trait_or_effect in self.traits + self.effects:
-            trait_or_effect.afterEffectApplied(self, effect)
 
     def removeEffect(self, effect: Effect) -> None:
         if effect in self.effects:
@@ -114,6 +120,9 @@ class Entity:
             self.traits.remove(trait)
 
     def takeDamage(self, amount: int, source: typing.Any) -> int:
+        if self.iframes:
+            printTypewriter(f"{Style.MAGENTA}* {self.name} is protected by i-frames!{Style.RESET}")
+            return 0
         for trait_or_effect in self.traits + self.effects:
             amount = trait_or_effect.beforeDamageTaken(self, amount, source)
         self.hp = max(0, self.hp - amount)
@@ -129,20 +138,28 @@ class Entity:
             trait_or_effect.afterDamageDealt(self, dealt, target, source)
         return dealt
 
-    def getInfoBar(self) -> str:
+    def getInfoBar(self, fighting: bool = False) -> str:
         name_str: str = f"{Style.BOLD}{self.name}{Style.RESET}"
         hp_str: str = f"{Style.BRIGHT_RED}{self.hp}/{self.max_hp}hp{Style.RESET}"
         st_str: str = f"{Style.YELLOW}{self.st}/{self.max_st}st{Style.RESET}"
         mn_str: str = f"{Style.BRIGHT_BLUE}{self.mn}/{self.max_mn}mn{Style.RESET}"
+        
+        super_str: str = ""
+        if isinstance(self, Player):
+            super_str = f" | {Style.REDDISH_PINK}{Style.BOLD}super: {self.super}%{Style.RESET}"
+
         effects_str: str = " ".join([f"[{e.name}]" for e in self.effects])
         if effects_str:
             effects_str = f" {Style.MAGENTA}{effects_str}{Style.RESET}"
-        return f"{name_str} | {hp_str} | {st_str} | {mn_str}{effects_str}"
+        return f"{Style.BRIGHT_GREEN}{Style.BOLD}{'[FIGHTING] ' if fighting else ''}{Style.RESET}{name_str} | {hp_str} | {st_str} | {mn_str}{super_str}{effects_str}"
     
     def onTick(self, skelebash: Skelebash) -> None: # type: ignore
-        self.heal(self.hp_recovery)
-        self.healStamina(self.st_recovery)
-        self.healMana(self.mn_recovery)
+        if self.hp_recovery:
+            self.heal(self.hp_recovery)
+        if self.st_recovery:
+            self.healStamina(self.st_recovery)
+        if self.mn_recovery:
+            self.healMana(self.mn_recovery)
         if self.stun >= 1:
             self.stun -= 1
         for effect in self.effects[:]:
@@ -169,6 +186,10 @@ class Player(Entity):
     MAX_ST: int = 100
     MN: int = 0
     MAX_MN: int = 0
+    SUPER: int = 0
+    MAX_SUPER: int = 100
+    SUPER_GAIN_PCT: int = 100
+    
     STANCE: Stance = Stance()
     ART: Art = Art()
     ARMAMENT: Armament = Armament()
@@ -177,8 +198,29 @@ class Player(Entity):
 
     def __init__(self) -> None:
         super().__init__()
+        self.super: int = self.SUPER
+        self.max_super: int = self.MAX_SUPER
+        self.super_gain_pct: int = self.SUPER_GAIN_PCT
         self.stance: Stance = self.STANCE
         self.art: Art = self.ART
         self.armament: Armament = self.ARMAMENT
+        from .skill import QuickBlock, SlowBlock, Deflect, Burst, Rage
+        self.reflex: Reflex = Reflex(QuickBlock(), SlowBlock(), Deflect(), Burst(), Rage())
         self.follow_up: FollowUp = self.FOLLOW_UP
         self.skill_points: int = self.SKILL_POINTS
+    def dealDamage(self, amount: int, target: Entity, source: DamageSource | tuple[DamageSource, typing.Any] = DamageSource.UNKNOWN) -> int:
+        dealt = super().dealDamage(amount, target, source)
+        self.super = min(self.max_super, pct(self.super + (dealt * 2), self.super_gain_pct))
+        return dealt
+    def takeDamage(self, amount: int, source: typing.Any) -> int:
+        taken = super().takeDamage(amount, source)
+        self.super = min(self.max_super, pct(self.super + taken, self.super_gain_pct))
+        return taken
+    def onTick(self, skelebash: Skelebash) -> None: # type: ignore
+        super().onTick(skelebash)
+        if skelebash.room.enemies[0]:
+            self.used.clear()
+        self.stance.onTick(self, skelebash)
+        self.art.onTick(self, skelebash)
+        self.armament.onTick(self, skelebash)
+        self.follow_up.onTick(self, skelebash)

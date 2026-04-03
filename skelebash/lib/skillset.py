@@ -7,10 +7,14 @@ from .keyset import Keyset, KeysetError
 
 
 class Skillset:
+    NAME: str | None = None
     def __init__(self, *skills: Skill) -> None:
+        self.name: str = self.NAME
         self.skills: list[Skill] = list(skills)
     def get(self, index: int) -> Skill:
         return self.skills[index]
+    def __getitem__(self, index: int) -> Skill:
+        return self.get(index)
     def prompt(self, player: Player, target: Entity, keyset: str = Keyset.ZXCVGH) -> Skill: # type: ignore
         if len(self.skills) > 6:
             raise IndexError(f"illegal skillset length. must be 6 or lower, not {len(self.skills)}.")
@@ -39,6 +43,8 @@ class Stance(Skillset):
 class Art(Skillset):
     pass
 class Armament(Skillset):
+    pass
+class Reflex(Skillset):
     pass
 class FollowUp(Skillset):
     pass

@@ -1,6 +1,8 @@
 from __future__ import annotations
 import asyncio, tkinter, typing, io, contextlib, traceback
 
+from .util import public, src, isModded
+
 def skelepanel(skelebash: Skelebash, after: typing.Callable) -> None:  # type: ignore
     root: tkinter.Tk = tkinter.Tk()
     root.title("skelepanel™")
@@ -24,12 +26,15 @@ def skelepanel(skelebash: Skelebash, after: typing.Callable) -> None:  # type: i
                     "pc": skelebash.player_character,
                     "dungeon": skelebash.dungeon,
                     "room": skelebash.room,
-                    "enemy": lambda i: skelebash.room.enemies[i],
+                    "enemy": lambda i: skelebash.room.enemies[i - 1],
                     "pinv": skelebash.player.inventory,
-                    "pinvitem": lambda i: skelebash.player.inventory[i].item,
+                    "pinvitem": lambda i: skelebash.player.inventory[i - 1].item,
                     "pheal": skelebash.player.heal,
                     "phealst": skelebash.player.healStamina,
-                    "phealmn": skelebash.player.healMana
+                    "phealmn": skelebash.player.healMana,
+                    "public": public,
+                    "src": src,
+                    "isModded": isModded
                 }
                 exec(before.get().strip(), context)
                 exec(before2.get().strip(), context)

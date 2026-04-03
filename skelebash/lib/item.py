@@ -2,13 +2,12 @@ from __future__ import annotations
 import math, re
 
 from .skillset import Skillset
-from .skill import Skill
+from .skill import Skill, Slash, HeavySlash, Punch, StickSlap, FocusDamage, FocusPrecision, FocusCritical, FocusStamina, UltimateFocus
 from .itembundle import ItemBundle, countItems
 from .itemstack import ItemStack
 from .style import breakLine, clearScreen, enterToContinue, printCommandPrompt, printPanel, printCentered, printStyle, Style, printTypewriter, prompt
 from .animation import LEVEL_UP_ANIMATION, MASTERY_UP_ANIMATION
 from .goal import Goal
-from .skill import Punch
 from .util import public, newFormula, newBuffs
 
 
@@ -88,17 +87,17 @@ class Item:
         DIVINE = "\033[1;38;5;117mdivine (*******)\033[0m"
     def __init__(self, enable_mxp_rewards: bool = True) -> None:
         """
-        parameter: enable_mxp_rewards - if True (default), allow the constructor to add onto the
-                                        afterUse triggers of all skills provided in the skillset,
-                                        allowing for mXP gain when a skill is used. this is a core
-                                        mechanic and should be enabled unless the item is specifically
-                                        not meant to grant mXP via skills. this option is already
-                                        disabled if the item does not have a skillset and/or mXP
-                                        rewards defined. if you do not want your skills to be modified,
-                                        provide False.
-
-                                        your already defined afterUse triggers will remain and the
-                                        script to grant mXP will activate after.
+        parameters:
+            enable_mxp_rewards - if True (default), allow the constructor to add onto the
+                                 afterUse triggers of all skills provided in the skillset,
+                                 allowing for mXP gain when a skill is used. this is a core
+                                 mechanic and should be enabled unless the item is specifically
+                                 not meant to grant mXP via skills. this option is already
+                                 disabled if the item does not have a skillset and/or mXP
+                                 rewards defined. if you do not want your skills to be modified,
+                                 provide False  
+                                 your already defined afterUse triggers will remain and the
+                                 script to grant mXP will activate after.
         """
         self.name: str = self.NAME
         self.description: str = self.DESCRIPTION
@@ -108,13 +107,11 @@ class Item:
         self.level: int = int(self.HAS_LEVELS)
         self.mastery: int = int(self.HAS_MASTERY) - 1
         self.upgrade_costs: list[ItemBundle] = self.UPGRADE_COSTS
-        if isinstance(self.UPGRADE_BUFFS, tuple) and len(self.UPGRADE_BUFFS) == 2:
-            self.upgrade_buffs, self.upgrade_stats = self.UPGRADE_BUFFS
-        else:
-            self.upgrade_buffs: list[list[str]] = self.UPGRADE_BUFFS
-            self.upgrade_stats: list[list[typing.Callable]] = [[] for _ in range(30)]
+        self.upgrade_buffs: list[list[str]] = self.UPGRADE_BUFFS
         self.goals: list[Goal] = self.GOALS
         self.skillset: Skillset | None = self.SKILLSET
+        if self.skillset:
+            self.skillset.name = self.name
         self.mxp_rewards_for_skills: list[int] | None = self.MXP_REWARDS_FOR_SKILLS
         if self.mxp_rewards_for_skills and self.skillset:
             for i, skill in enumerate(self.skillset):
@@ -186,14 +183,9 @@ class Item:
                         printTypewriter(f"{Style.RED}you don't have enough items to upgrade!")
                         enterToContinue()
                     else:
-                        self.onUpgrade(entity)
+                        self.levelUp(1, entity)
                         for itemstack in itembundle:
                             entity.inventory.remove(itemstack)
-                        
-                        for stat_modifier in self.upgrade_stats[self.level]:
-                            stat_modifier(self.skillset)
-                            
-                        self.level += 1
             elif inp == "g" and self.goals and allow_goals_view:
                 for goal in self.goals:
                     goal.showInfo()
@@ -234,23 +226,25 @@ class Item:
         self.mastery += round(mxp * multiplier)
         if math.floor(self.mastery / 100) > math.floor(mastery_before / 100):
             self.onMasteryUpgrade(entity)
-    def masteryUp(self, entity: Entity) -> None: # type: ignore
-        self.addMastery(100, entity)
+    def masteryUp(self, n: int, entity: Entity) -> None: # type: ignore
+        self.addMastery(100 * n, entity)
     def levelUp(self, n: int, entity: Entity) -> None: # type: ignore
-        for _ in range(n):
-            if self.level < 30:
-                for stat_modifier in self.upgrade_stats[self.level]:
-                    stat_modifier(self.skillset)
-                self.level += 1
+        self.level += n
         self.onUpgrade(entity)
-    def equipAsArmament(self, entity: Entity) -> None: # type: ignore
-        entity.armament = self.skillset
-        printTypewriter(f"equipped {self.name} as armament.")
+    def equip(self, entity: Entity, name: str = "armament") -> None: # type: ignore
+        setattr(entity, name, self.skillset)
+        printTypewriter(f"* {Style.BOLD}{self.name}{Style.RESET} equipped as {Style.BOLD}{name}{Style.RESET}.")
         enterToContinue()
     def onUse(self, entity: Entity) -> None: # type: ignore
         enterToContinue()
     def onUpgrade(self, entity: Entity) -> None: # type: ignore
+        self.updateSkills(entity)
         LEVEL_UP_ANIMATION.play(1)
+    def updateSkills(self, entity: Entity) -> None:
+        for skill in self.skillset.skills:
+            self.onSkillUpdate(skill, entity)
+    def onSkillUpdate(self, skill: Skill, entity: Entity) -> None: # type: ignore
+        pass
     def onMasteryUpgrade(self, entity: Entity) -> None: # type: ignore
         MASTERY_UP_ANIMATION.play(1)
     def onTick(self, skelebash: Skelebash) -> None: # type: ignore
@@ -271,10 +265,9 @@ class IronChip(Item):
     UPGRADE_BUFFS: list[list[str]] = []
     GOALS: list[Goal] = []
     SKILLSET: Skillset | None = None
-
 class Greatsword(Item):
     NAME: str = "greatsword"
-    DESCRIPTION: str = "a heavy sword with high-damaging but slow moves. comes with 'warrior' character."
+    DESCRIPTION: str = "a heavy sword with high-damaging but slow moves."
     RARITY: str | None = Item.Rarity.UNCOMMON
     USABLE: bool = True
     USE_TEXT: str = "equip"
@@ -287,22 +280,42 @@ class Greatsword(Item):
     UPGRADE_BUFFS: list[list[str]] = newBuffs({
         2: (
             "+{}% damage",
-            ("starts", 2),
-            ("stat", "Punch", "base_damage"),
-            ("scaling", "x+2"),
+            ("starts", 50),
+            ("scaling", "x+15"),
         ),
         6: (
             "+{}% crit damage",
             ("starts", 10),
-            ("stat", "Punch", "crit_damage"),
-            ("scaling", "x+2")
+            ("scaling", "x+3")
         ),
         11: (
             "+{}% crit chance",
             ("starts", 5),
-            ("stat", "Punch", "CRIT_CHANCE_PCT"),
             ("scaling", "x+1")
         )
     })
     GOALS: list[Goal] = []
     SKILLSET: Skillset | None = Skillset(Punch())
+    def onSkillUpdate(self, skill: Skill, entity: Entity) -> None: # type: ignore
+        skill.extra_damage_pct = skill.EXTRA_DAMAGE_PCT
+        skill.crit_damage_pct = skill.CRIT_DAMAGE_PCT
+        skill.crit_chance_pct = skill.CRIT_CHANCE_PCT
+        if self.level >= 2:
+            skill.extra_damage_pct += round((self.level - 1) * 15)
+        if self.level >= 6:
+            skill.crit_damage_pct += round((self.level - 5) * 5)
+        if self.level >= 11:
+            skill.crit_chance_pct += round((self.level - 10))
+
+class Stick(Item):
+    NAME: str = "stick"
+    DESCRIPTION: str = "a common wooden stick. surprisingly effective for channeling magic."
+    RARITY: str | None = Item.Rarity.UNCOMMON
+    USABLE: bool = True
+    USE_TEXT: str = "equip"
+    HAS_LEVELS: bool = False
+    HAS_MASTERY: bool = False
+    SKILLSET: Skillset | None = Skillset(StickSlap(), FocusDamage(), FocusPrecision(), FocusCritical(), FocusStamina(), UltimateFocus())
+
+    def onUse(self, entity: Entity) -> None: # type: ignore
+        self.equipAsArmament(entity)

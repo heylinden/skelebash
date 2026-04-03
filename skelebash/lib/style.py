@@ -17,6 +17,7 @@ class Style:
     CYAN = '\033[36m'
     WHITE = '\033[37m'
     ORANGE = '\033[38;5;208m'
+    REDDISH_PINK = '\033[38;5;197m'
     BRIGHT_BLACK = '\033[90m'
     BRIGHT_RED = '\033[91m'
     BRIGHT_GREEN = '\033[92m'
@@ -43,6 +44,7 @@ class Style:
     BG_BRIGHT_CYAN = '\033[106m'
     BG_BRIGHT_WHITE = '\033[107m'
     BG_ORANGE = '\033[48;5;208m'
+    BG_REDDISH_PINK = '\033[48;5;197m'
 
 def printStyle(*args) -> None:
     print(*args, Style.RESET)

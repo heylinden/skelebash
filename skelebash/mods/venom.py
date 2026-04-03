@@ -19,8 +19,8 @@ class VenomFang(Item):
 class VenomSlash(Skill):
     NAME: str = "venom slash"
     DESCRIPTION: str = "slash your enemy with poison."
-    BASE_DAMAGE: int = 14
-    BASE_STUN: int = 0
+    DAMAGE: int = 14
+    STUN: int = 0
     CRIT_CHANCE_PCT: int = 25
     WHIFF_CHANCE_PCT: int = 25
     ST_COST: int = 15
@@ -44,7 +44,6 @@ class VenomDagger(Item):
     HAS_LEVELS: bool = True
     HAS_MASTERY: bool = True
     UPGRADE_COSTS: list[ItemBundle] = [
-        # Upgrade costs for each level, where amount = round(1 * 1.073 ** (level-1))
         ItemBundle(
             VenomFang()*1,   # level 1 
         ),
