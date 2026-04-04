@@ -1,2 +1,2 @@
 # skelebash
-Dungeon-crawler rogue-like based fully in the terminal! Highly moddable and many features for advanced players.
+dungeon-crawler rogue-like based fully in the terminal! highly moddable and many features for advanced players.
