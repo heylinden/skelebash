@@ -1,6 +1,13 @@
 from __future__ import annotations
 import typing
+import math
+from .util import public, incrpct
+from .style import Style, printTypewriter
+from .damagesource import DamageSource
 
+if typing.TYPE_CHECKING:
+    from .entity import Entity
+    from .skelebash import Skelebash
 
 class Trait:
     NAME: str = "unknown trait"

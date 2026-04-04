@@ -1,7 +1,7 @@
 from __future__ import annotations
 import typing
 
-from .public import public
+from .util import public
 
 
 class Goal:

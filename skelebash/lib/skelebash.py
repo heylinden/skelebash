@@ -390,8 +390,11 @@ class Skelebash:
                     active_enemy.brain = ComplexBrain()
                 possessive: str = '\'' if active_enemy.name.endswith('s') else '\'s'
                 printTypewriter(f"\n--- {active_enemy.name + possessive} turn ---")
-                printTypewriter(f"\n{Style.BRIGHT_BLACK}thinking...\n", 0.1)
-                enemy_skill = active_enemy.brain.decide(active_enemy, self.player)
+                printTypewriter(f"\n{Style.BRIGHT_BLACK}thinking...\n", 0.05)
+                enemy_skill, reasoning = active_enemy.brain.decide(active_enemy, self.player)
+                if reasoning:
+                    printTypewriter(f"{Style.BRIGHT_BLACK}{reasoning}{Style.RESET}", 0.03)
+                    breakLine()
             else:
                 printTypewriter(f"{active_enemy.name} is stunned!")
 
