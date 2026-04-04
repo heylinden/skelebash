@@ -2,8 +2,9 @@ from __future__ import annotations
 import typing
 
 from .style import printTypewriter, Style
-from .util import pct, incrpct, decrpct
+from .util import pct, incrpct, decrpct, public
 from .damagesource import DamageSource
+
 
 if typing.TYPE_CHECKING:
     from .entity import Entity
@@ -49,6 +50,7 @@ class Effect:
     def __repr__(self) -> str:
         return f"Effect('{self.name}', duration={self.duration})"
 
+@public
 class DamageEffect(Effect):
     NAME: str = "base_damage_effect"
     DESCRIPTION: str = "takes {level} damage per turn"
@@ -58,6 +60,7 @@ class DamageEffect(Effect):
         printTypewriter(f"{entity.name} took {self.level} damage from {self.name}! ({entity.hp} / {entity.max_hp})")
         super().onTick(entity, skelebash)
 
+@public
 class HyperarmorEffect(Effect):
     NAME: str = "hyperarmor"
     DESCRIPTION: str = "increases damage taken when interrupted during hyperarmor."
@@ -65,9 +68,10 @@ class HyperarmorEffect(Effect):
     def beforeDamageTaken(self, entity: Entity, amount: int, source: typing.Any) -> int:
         return pct(incrpct(amount, entity.calculate("hyperarmor_strength_pct")), decrpct(100, entity.calculate("hyperarmor_defense_pct")))
 
+@public
 class ArtAmplifiedEffect(Effect):
     NAME: str = "art amplified"
-    DESCRIPTION: str = "The next Art skill used will have massively increased damage and precision."
+    DESCRIPTION: str = "art skills used have increased stats."
     SHOW: bool = True
 
     def beforeDamageDealt(self, entity: Entity, amount: int, target: Entity, source: typing.Any) -> int:
@@ -95,18 +99,20 @@ class ArtAmplifiedEffect(Effect):
             if any(isinstance(s, used.skill.__class__) for s in entity.art.skills):
                 entity.removeEffect(self)
 
+@public
 class RageEffect(Effect):
     NAME: str = "rage"
-    DESCRIPTION: str = "Increases damage dealt by 50%, but also increases damage taken by 25%."
+    DESCRIPTION: str = "increases damage dealt by 50%, but also increases damage taken by 25%."
     SHOW: bool = True
     def beforeDamageDealt(self, entity: Entity, amount: int, target: Entity, source: typing.Any) -> int:
         return incrpct(amount, 50)
     def beforeDamageTaken(self, entity: Entity, amount: int, source: typing.Any) -> int:
         return incrpct(amount, 25)
 
+@public
 class BurstEffect(Effect):
     NAME: str = "burst i-frames"
-    DESCRIPTION: str = "Provides i-frames for the turn."
+    DESCRIPTION: str = "provides i-frames for the turn."
     SHOW: bool = False
     def onApply(self, entity: Entity) -> None:
         entity.iframes = True

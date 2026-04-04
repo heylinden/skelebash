@@ -249,7 +249,7 @@ class Item:
         MASTERY_UP_ANIMATION.play(1)
     def onTick(self, skelebash: Skelebash) -> None: # type: ignore
         for goal in self.goals:
-            goal.onTick(skelebash)
+            goal.onTick(skelebash, self)
     def __repr__(self) -> str:
         return f"Item('{self.name}')"
 

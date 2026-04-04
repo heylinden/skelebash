@@ -122,9 +122,8 @@ class Sorcerer(Character):
         "starts with 1.5x durability",
         "starts with 'mana shield' trait",
         "starts with 'sorcerer' stance",
-        "starts with 'stick' armament (6 focus skills)",
-        "starts with 'reflex' skillset (5 moves)",
-        "super meter enabled"
+        "starts with 'manamancer tier i' art",
+        "starts with 'stick' armament"
     ]
     class ENTITY(Player):
         HP: int = 80

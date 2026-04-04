@@ -1,6 +1,8 @@
 from __future__ import annotations
 import typing
 
+from .public import public
+
 
 class Goal:
     NAME: str = "unnamed goal"
@@ -18,5 +20,19 @@ class Goal:
         self.name: str = self.NAME
         self.description: str = self.DESCRIPTION
         self.difficulty: str = self.DIFFICULTY or Goal.Difficulty.NONE
-    def check(self) -> None:
-        pass
+        self.completed: bool = False
+    def onTick(self, skelebash: Skelebash, item: Item) -> None:
+        self.completed = bool(self.check(skelebash, item))
+    def check(self, skelebash: Skelebash, item: Item) -> bool:
+        return False
+    def __repr__(self) -> str:
+        return f"Goal('{self.name}')"
+
+@public
+class MaxLevelGoal(Goal):
+    NAME: str = "max level"
+    DESCRIPTION: str = "reach max level (30) on this item."
+    DIFFICULTY: str = Goal.Difficulty.HARD
+    REWARD_MASTERY: int = 500
+    def check(self, skelebash: Skelebash, item: Item) -> bool:
+        return item.level == 30

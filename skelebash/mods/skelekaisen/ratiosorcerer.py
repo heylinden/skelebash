@@ -67,7 +67,7 @@ class DullBladeStrike(Skill):
     STARTUP: int = 5
     COOLDOWN: int = 1
     STARTING_COOLDOWN: int = 0
-    ANIMATION = SLASH_ANIMATION
+    ANIMATIONS: list[Animation] = [SLASH_ANIMATION]
 
 @public
 class RatioSlash(Skill):
@@ -84,7 +84,7 @@ class RatioSlash(Skill):
     STARTUP: int = 8
     COOLDOWN: int = 2
     STARTING_COOLDOWN: int = 0
-    ANIMATION = SLASH_ANIMATION
+    ANIMATIONS: list[Animation] = [SLASH_ANIMATION]
 
 @public
 class Collapse(Skill):
@@ -101,7 +101,7 @@ class Collapse(Skill):
     STARTUP: int = 12
     COOLDOWN: int = 4
     STARTING_COOLDOWN: int = 0
-    ANIMATION = PUNCH_ANIMATION
+    ANIMATIONS: list[Animation] = [PUNCH_ANIMATION]
 
 @public
 class RatioTechnique(Item):
