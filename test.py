@@ -3,11 +3,11 @@ import sys
 
 from skelebash.lib.style import printTypewriter
 from skelebash.lib.skelebash import Skelebash
-from skelebash.mods.venom import VenomDagger, VenomFang
+from skelebash.mod.venom import VenomDagger, VenomFang
 from skelebash.lib.item import IronChip
 from skelebash.lib.skelepanel import skelepanel
 from skelebash.lib.character import BASE_CHARACTER_LIST
-from skelebash.mods.test import Slime
+from skelebash.mod.test import Slime
 
 
 skelebash: Skelebash = Skelebash.promptLoad(BASE_CHARACTER_LIST, sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith("-") else None, sys.argv[2] if len(sys.argv) > 2 and not sys.argv[2].startswith("-") else None)    

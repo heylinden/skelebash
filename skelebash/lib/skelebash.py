@@ -9,10 +9,11 @@ from .style import printStyle, Style, printCommandPrompt, clearScreen, enterToCo
 from .entity import Player
 from .effect import ArtAmplifiedEffect
 from .constants import ADJECTIVES, LAST_OPENED_FILE, NOUNS, SAVES_DIR
-from .util import deserialize, serialize
+from .util import deserialize, serialize, incrpct
 from .room import Room
 from .dungeon import Dungeon, PlaceholderDungeon
 from .character import Character, Balanced, chooseCharacter
+from .animation import BURST_ANIMATION
 
 
 class Skelebash:
@@ -143,6 +144,7 @@ class Skelebash:
             ((lambda text: printTypewriter(text, 0.01) )if first else printStyle)(f"\n{Style.BOLD}--- your turn ---{Style.RESET}")
             printCommandPrompt("a", "attack", (lambda text: printTypewriter(text, 0.005) )if first else printStyle)
             printCommandPrompt("p", "pass", (lambda text: printTypewriter(text, 0.005) )if first else printStyle)
+            printCommandPrompt("b", f"{Style.BRIGHT_BLACK}burst ({self.player.burst_active_cooldown} turns)" if self.player.burst_active_cooldown else f"burst ({Style.REDDISH_PINK}{self.player.burst_cost}{self.player.SUPER_LABEL} {self.player.FULL_SUPER_LABEL}{Style.RESET})", (lambda text: printTypewriter(text, 0.005) )if first else printStyle)
             printCommandPrompt("i", "inventory", (lambda text: printTypewriter(text, 0.005) )if first else printStyle)
             printCommandPrompt("e", "effects", (lambda text: printTypewriter(text, 0.005) )if first else printStyle)
             printCommandPrompt("s", "skill tree/attributes", (lambda text: printTypewriter(text, 0.005) )if first else printStyle)
@@ -168,11 +170,11 @@ class Skelebash:
 
             if inp == "a":
                 printTypewriter("select category:")
-                printCommandPrompt("1", f"{Style.BRIGHT_BLACK if not self.player.stance.skills else ''}stance {'['+self.player.stance.name+']' if self.player.stance.name else ''} ({len(self.player.stance.skills)} skill{'' if len(self.player.stance.skills) == 1 else 's'}){Style.RESET}")
-                printCommandPrompt("2", f"{Style.BRIGHT_BLACK if not self.player.art.skills else ''}art {'['+self.player.art.name+']' if self.player.art.name else ''} ({len(self.player.art.skills)} skill{'' if len(self.player.art.skills) == 1 else 's'}){Style.RESET}")
-                printCommandPrompt("3", f"{Style.BRIGHT_BLACK if not self.player.armament.skills else ''}armament {'['+self.player.armament.name+']' if self.player.armament.name else ''} ({len(self.player.armament.skills)} skill{'' if len(self.player.armament.skills) == 1 else 's'}){Style.RESET}")
-                printCommandPrompt("4", f"{Style.BRIGHT_BLACK if not self.player.follow_up.skills else ''}follow-up {'['+self.player.follow_up.name+']' if self.player.follow_up.name else ''} ({len(self.player.follow_up.skills)} skill{'' if len(self.player.follow_up.skills) == 1 else 's'}){Style.RESET}")
-                printCommandPrompt("5", f"{Style.BRIGHT_BLACK if not self.player.reflex.skills else ''}reflex {'['+self.player.reflex.name+']' if self.player.reflex.name else ''} ({len(self.player.reflex.skills)} skill{'' if len(self.player.reflex.skills) == 1 else 's'}){Style.RESET}")
+                printCommandPrompt("1", f"{Style.BRIGHT_BLACK if not self.player.stance.skills else ''}stance {'['+self.player.stance.name+'] ' if self.player.stance.name else ''}({len(self.player.stance.skills)} skill{'' if len(self.player.stance.skills) == 1 else 's'}){Style.RESET}")
+                printCommandPrompt("2", f"{Style.BRIGHT_BLACK if not self.player.art.skills else ''}art {'['+self.player.art.name+'] ' if self.player.art.name else ''}({len(self.player.art.skills)} skill{'' if len(self.player.art.skills) == 1 else 's'}){Style.RESET}")
+                printCommandPrompt("3", f"{Style.BRIGHT_BLACK if not self.player.armament.skills else ''}armament {'['+self.player.armament.name+'] ' if self.player.armament.name else ''}({len(self.player.armament.skills)} skill{'' if len(self.player.armament.skills) == 1 else 's'}){Style.RESET}")
+                printCommandPrompt("4", f"{Style.BRIGHT_BLACK if not self.player.follow_up.skills else ''}follow-up {'['+self.player.follow_up.name+'] ' if self.player.follow_up.name else ''}({len(self.player.follow_up.skills)} skill{'' if len(self.player.follow_up.skills) == 1 else 's'}){Style.RESET}")
+                printCommandPrompt("5", f"{Style.BRIGHT_BLACK if not self.player.reflex.skills else ''}reflex {'['+self.player.reflex.name+'] ' if self.player.reflex.name else ''}({len(self.player.reflex.skills)} skill{'' if len(self.player.reflex.skills) == 1 else 's'}){Style.RESET}")
                 printCommandPrompt("b", "back")
                 while True:
                     cat_inp = prompt("attack", self)
@@ -193,8 +195,9 @@ class Skelebash:
                     continue
 
                 printTypewriter("select skill:")
+                strongest_skill: Skill = sorted(selected_skillset.skills, key=lambda skill: incrpct(incrpct(skill.base_damage, skill.extra_damage_pct), self.player.calculate("strength_pct")) if skill.super_cost != 100 else -1, reverse=True)
                 for i, skill in enumerate(selected_skillset.skills):
-                    printCommandPrompt(str(i+1), f"{Style.REDDISH_PINK if skill.super_cost == 100 else ''}{Style.BRIGHT_BLACK if skill.active_cooldown else ''}{skill.name} {Style.BRIGHT_BLACK}[{skill.startup}f]{Style.RESET} ({skill.st_cost}st, {skill.mn_cost}mn{(', '+str(skill.super_cost)+'sp') if skill.super_cost else ''})" + (f"{Style.BRIGHT_BLACK} | {skill.active_cooldown} turn{'' if skill.active_cooldown == 1 else 's'}{Style.RESET}" if skill.active_cooldown else ""))
+                    printCommandPrompt(str(i+1), f"{Style.GREEN+'[best non-super] ' if skill == strongest_skill[0] else ''}{Style.RESET}{Style.REDDISH_PINK if skill.super_cost == 100 else ''}{Style.BRIGHT_BLACK if skill.active_cooldown else ''}{skill.name} {Style.BRIGHT_BLACK}[{skill.startup}f]{Style.RESET} ({skill.st_cost}{self.player.ST_LABEL}, {skill.mn_cost}{self.player.MN_LABEL}{(', '+str(skill.super_cost)+self.player.SUPER_LABEL[0]+'p') if skill.super_cost else ''})" + (f"{Style.BRIGHT_BLACK} | {skill.active_cooldown} turn{'' if skill.active_cooldown == 1 else 's'}{Style.RESET}" if skill.active_cooldown else ""))
                 printCommandPrompt("b", "back")
 
                 while True:
@@ -210,20 +213,20 @@ class Skelebash:
                     super_cost = skill.super_cost
                     for effect in self.player.effects:
                         if isinstance(effect, ArtAmplifiedEffect) and effect.boost_type in ["stamina", "ultimate", "all"]:
-                            if any(isinstance(s, self.__class__) for s in entity.art.skills):
+                            if any(isinstance(s, self.__class__) for s in self.player.art.skills):
                                 st_cost = 0
-                                printTypewriter(f"{Style.BRIGHT_GREEN}* stamina cost reduced to 0 by focus!{Style.RESET}")
+                                printTypewriter(f"{Style.BRIGHT_GREEN}* {self.player.FULL_ST_LABEL} cost reduced to 0 by focus!{Style.RESET}")
                                 break
                     if self.player.super < super_cost:
-                        printTypewriter(f"{Style.RED}* not enough super. ({self.player.super} / {super_cost})")
+                        printTypewriter(f"{Style.RED}* not enough {self.player.FULL_SUPER_LABEL}. ({self.player.super} / {super_cost}{self.player.SUPER_LABEL})")
                         enterToContinue()
                         continue
                     if self.player.st < st_cost:
-                        printTypewriter(f"{Style.RED}* not enough stamina. ({self.player.st} / {st_cost})")
+                        printTypewriter(f"{Style.RED}* not enough {self.player.FULL_ST_LABEL}. ({self.player.st} / {st_cost}{self.player.ST_LABEL})")
                         enterToContinue()
                         continue
                     if self.player.mn < mn_cost:
-                        printTypewriter(f"{Style.RED}* not enough mana. ({self.player.mn} / {mn_cost})")
+                        printTypewriter(f"{Style.RED}* not enough {self.player.FULL_MN_LABEL}. ({self.player.mn} / {mn_cost}{self.player.MN_LABEL})")
                         enterToContinue()
                         continue
                     self.player.st -= st_cost
@@ -237,6 +240,21 @@ class Skelebash:
                     continue
             elif inp == "p":
                 pass
+            elif inp == "b":
+                if self.player.burst_active_cooldown:
+                    printTypewriter(f"{Style.RED}* burst is on cooldown for {self.player.burst_active_cooldown} more turns.{Style.RESET}")
+                    enterToContinue()
+                    continue
+                if self.player.super < self.player.burst_cost:
+                    printTypewriter(f"{Style.RED}* not enough {self.player.FULL_SUPER_LABEL}. ({self.player.super} / {self.player.burst_cost}{self.player.SUPER_LABEL})")
+                    enterToContinue()
+                    continue
+                
+                self.player.super -= self.player.burst_cost
+                self.player.burst_active_cooldown = self.player.burst_base_cooldown
+                (BURST_ANIMATION@0.1).play()
+                printTypewriter(f"* {self.player.name} activates their burst!")
+                self.room.enemies[0].stun += 1
             elif inp == "i":
                 printTypewriter("\n--- inventory ---", 0.01)
                 if not self.player.inventory.itemstacks:
@@ -279,25 +297,26 @@ class Skelebash:
                     clearScreen()
                     ((lambda s: printTypewriter(s, 0.005)) if skill_tree_first else printStyle)("\n--- skill tree / attributes ---")
                     ((lambda s: printTypewriter(s, 0.005)) if skill_tree_first else printStyle)(f"* available skill points: {Style.YELLOW}{self.player.skill_points}{Style.RESET}")
-                    printCommandPrompt("1", f"{Style.BRIGHT_RED}upgrade max hp (hit points/health):                          {self.player.max_hp}hp -> {self.player.max_hp+2}hp", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
-                    printCommandPrompt("2", f"{Style.YELLOW}upgrade max st (stamina):                                    {self.player.max_st}st -> {self.player.max_st+2}st", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
-                    printCommandPrompt("3", f"{Style.YELLOW}upgrade st recovery:                                         {self.player.st_recovery}st/turn -> {self.player.st_recovery+1}st/turn", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
-                    printCommandPrompt("4", f"{Style.BRIGHT_BLUE}upgrade max mn (mana):                                       {self.player.max_mn}mn -> {self.player.max_mn+2}mn", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)   
-                    printCommandPrompt("5", f"{Style.BRIGHT_BLUE}upgrade mn recovery:                                         {self.player.mn_recovery}mn/turn -> {self.player.mn_recovery+1}mn/turn", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
-                    printCommandPrompt("6", f"{Style.BRIGHT_GREEN}upgrade max bh (block health):                               {self.player.max_bh}bh -> {self.player.max_bh+2}bh", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
-                    printCommandPrompt("7", f"{Style.BRIGHT_GREEN}upgrade bh recovery:                                         {self.player.bh_recovery}bh/turn -> {self.player.bh_recovery+1}bh/turn", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
-                    printCommandPrompt("8", f"{Style.RED}upgrade strength (dealt damage increase):                    {self.player.strength_pct}% -> {self.player.strength_pct+5}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
-                    printCommandPrompt("9", f"{Style.BLUE}upgrade defense (taken damage reduction):                    {self.player.defense_pct}% -> {self.player.defense_pct+5}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
-                    printCommandPrompt("10", f"{Style.GREEN}upgrade precision (dealt crit chance increase):             {self.player.precision_pct}% -> {self.player.precision_pct+5}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
-                    printCommandPrompt("11", f"{Style.YELLOW}upgrade force (dealt crit damage increase):                 {self.player.force_pct}% -> {self.player.force_pct+5}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
-                    printCommandPrompt("12", f"{Style.MAGENTA}upgrade concentration (dealt whiff chance reduction):       {self.player.concentration_pct}% -> {self.player.concentration_pct+5}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
-                    printCommandPrompt("13", f"{Style.ORANGE}upgrade agility (taken whiff chance increase):              {self.player.agility_pct}% -> {self.player.agility_pct+5}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
-                    printCommandPrompt("14", f"{Style.BRIGHT_BLACK}upgrade durability (taken crit chance reduction):           {self.player.durability_pct}% -> {self.player.durability_pct+5}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
-                    printCommandPrompt("15", f"{Style.BRIGHT_GREEN}upgrade block strength (outgoing block damage increase):    {self.player.block_strength_pct}% -> {self.player.block_strength_pct+10}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
-                    printCommandPrompt("17", f"{Style.BRIGHT_GREEN}upgrade block efficiency (incoming block damage reduction): {self.player.block_efficiency_pct}% -> {self.player.block_efficiency_pct+5}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
-                    printCommandPrompt("18", f"{Style.BRIGHT_BLUE}upgrade hyperarmor strength (outgoing hyperarmor increase): {self.player.hyperarmor_strength_pct}% -> {self.player.hyperarmor_strength_pct+10}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
-                    printCommandPrompt("19", f"{Style.BRIGHT_BLUE}upgrade hyperarmor defense (incoming hyperarmor reduction): {self.player.hyperarmor_defense_pct}% -> {self.player.hyperarmor_defense_pct+5}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
-                    printCommandPrompt("20", f"{Style.REDDISH_PINK}upgrade super gain: {self.player.super_gain_pct}% -> {self.player.super_gain_pct+10}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)                    
+                    printCommandPrompt("1", f"{Style.BRIGHT_RED}upgrade max hp (hit points/health):                          {self.player.calculate('max_hp')}{self.player.HP_LABEL} -> {self.player.calculate('max_hp')+2}{self.player.HP_LABEL}", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("2", f"{Style.YELLOW}upgrade max {self.player.ST_LABEL} ({self.player.FULL_ST_LABEL}):                                    {self.player.calculate('max_st')}{self.player.ST_LABEL} -> {self.player.calculate('max_st')+2}{self.player.ST_LABEL}", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("3", f"{Style.YELLOW}upgrade {self.player.ST_LABEL} recovery:                                         {self.player.calculate('st_recovery')}{self.player.ST_LABEL}/turn -> {self.player.calculate('st_recovery')+1}{self.player.ST_LABEL}/turn", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("4", f"{Style.BRIGHT_BLUE}upgrade max mn (mana):                                       {self.player.calculate('max_mn')}{self.player.MN_LABEL} -> {self.player.calculate('max_mn')+2}{self.player.MN_LABEL}", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)   
+                    printCommandPrompt("5", f"{Style.BRIGHT_BLUE}upgrade mn recovery:                                         {self.player.calculate('mn_recovery')}{self.player.MN_LABEL}/turn -> {self.player.calculate('mn_recovery')+1}{self.player.MN_LABEL}/turn", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("6", f"{Style.BRIGHT_GREEN}upgrade max bh (block health):                               {self.player.calculate('max_bh')}{self.player.BH_LABEL} -> {self.player.calculate('max_bh')+2}{self.player.BH_LABEL}", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("7", f"{Style.BRIGHT_GREEN}upgrade bh recovery:                                         {self.player.calculate('bh_recovery')}{self.player.BH_LABEL}/turn -> {self.player.calculate('bh_recovery')+1}{self.player.BH_LABEL}/turn", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("8", f"{Style.RED}upgrade strength (dealt damage increase):                    {self.player.calculate('strength_pct')}% -> {self.player.calculate('strength_pct')+5}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("9", f"{Style.BLUE}upgrade defense (taken damage reduction):                    {self.player.calculate('defense_pct')}% -> {self.player.calculate('defense_pct')+5}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("10", f"{Style.GREEN}upgrade precision (dealt crit chance increase):             {self.player.calculate('precision_pct')}% -> {self.player.calculate('precision_pct')+5}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("11", f"{Style.YELLOW}upgrade force (dealt crit damage increase):                 {self.player.calculate('force_pct')}% -> {self.player.calculate('force_pct')+5}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("12", f"{Style.MAGENTA}upgrade concentration (dealt whiff chance reduction):       {self.player.calculate('concentration_pct')}% -> {self.player.calculate('concentration_pct')+5}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("13", f"{Style.ORANGE}upgrade agility (taken whiff chance increase):              {self.player.calculate('agility_pct')}% -> {self.player.calculate('agility_pct')+5}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("14", f"{Style.BRIGHT_BLACK}upgrade durability (taken crit chance reduction):           {self.player.calculate('durability_pct')}% -> {self.player.calculate('durability_pct')+5}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("15", f"{Style.BRIGHT_GREEN}upgrade block strength (outgoing block damage increase):    {self.player.calculate('block_strength_pct')}% -> {self.player.calculate('block_strength_pct')+10}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("17", f"{Style.BRIGHT_GREEN}upgrade block efficiency (incoming block damage reduction): {self.player.calculate('block_efficiency_pct')}% -> {self.player.calculate('block_efficiency_pct')+5}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("18", f"{Style.BRIGHT_BLUE}upgrade hyperarmor strength (outgoing hyperarmor increase): {self.player.calculate('hyperarmor_strength_pct')}% -> {self.player.calculate('hyperarmor_strength_pct')+10}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("19", f"{Style.BRIGHT_BLUE}upgrade hyperarmor defense (incoming hyperarmor reduction): {self.player.calculate('hyperarmor_defense_pct')}% -> {self.player.calculate('hyperarmor_defense_pct')+5}%", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("20", f"{Style.REDDISH_PINK}upgrade {self.player.FULL_SUPER_LABEL} gain:              {self.player.calculate('super_gain_pct')}{self.player.SUPER_LABEL} -> {self.player.calculate('super_gain_pct')+10}{self.player.SUPER_LABEL}", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
+                    printCommandPrompt("21", f"{Style.BRIGHT_RED}upgrade hp recovery:                                         {self.player.calculate('hp_recovery')}{self.player.HP_LABEL}/turn -> {self.player.calculate('hp_recovery')+1}{self.player.HP_LABEL}/turn", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
                     printCommandPrompt("b", "back", (lambda s: printTypewriter(s, 0.0001)) if skill_tree_first else printStyle)
                     
                     skill_tree_first = False
@@ -315,34 +334,40 @@ class Skelebash:
                         case "1":
                             self.player.max_hp += 2
                         case "2":
-                            self.player.hp_recovery += 1
-                        case "3":
+                            if self.player.MAX_ST == 0:
+                                printTypewriter(f"{Style.RED}* your character cannot use {self.player.ST_LABEL}!{Style.RESET}")
+                                enterToContinue()
+                                continue
                             self.player.max_st += 2
-                        case "4":
+                        case "3":
+                            if self.player.MAX_ST == 0:
+                                printTypewriter(f"{Style.RED}* your character cannot use {self.player.ST_LABEL}!{Style.RESET}")
+                                enterToContinue()
+                                continue
                             self.player.st_recovery += 1
-                        case "5":
+                        case "4":
                             self.player.max_mn += 2
-                        case "6":
+                        case "5":
                             self.player.mn_recovery += 1
-                        case "7":
+                        case "6":
                             self.player.max_bh += 2
-                        case "8":
+                        case "7":
                             self.player.bh_recovery += 1
-                        case "9":
+                        case "8":
                             self.player.strength_pct += 5
-                        case "10":
+                        case "9":
                             self.player.defense_pct += 5
-                        case "11":
+                        case "10":
                             self.player.precision_pct += 5
-                        case "12":
+                        case "11":
                             self.player.force_pct += 5
-                        case "13":
+                        case "12":
                             self.player.concentration_pct += 5
-                        case "14":
+                        case "13":
                             self.player.agility_pct += 5
-                        case "15":
+                        case "14":
                             self.player.durability_pct += 5
-                        case "16":
+                        case "15":
                             self.player.block_strength_pct += 10
                         case "17":
                             self.player.block_efficiency_pct += 5
@@ -352,6 +377,8 @@ class Skelebash:
                             self.player.hyperarmor_defense_pct += 5
                         case "20":
                             self.player.super_gain_pct += 10
+                        case "21":
+                            self.player.hp_recovery += 1
                         case _:
                             continue
                         

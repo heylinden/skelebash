@@ -1,7 +1,7 @@
 from __future__ import annotations
 import math, re
 
-from .skillset import Skillset
+from .skillset import Skillset, Armament
 from .skill import Skill, Slash, HeavySlash, Punch, StickSlap, FocusDamage, FocusPrecision, FocusCritical, FocusStamina, UltimateFocus
 from .itembundle import ItemBundle, countItems
 from .itemstack import ItemStack
@@ -232,6 +232,14 @@ class Item:
         self.level += n
         self.onUpgrade(entity)
     def equip(self, entity: Entity, name: str = "armament") -> None: # type: ignore
+        if name == "stance" and isinstance(entity.stance, UnavailableStance):
+            printTypewriter(f"{Style.RED}you can't equip stances as this character.{Style.RESET}")
+            enterToContinue()
+            return
+        if name == "armament" and isinstance(entity.armament, UnavailableArmament):
+            printTypewriter(f"{Style.RED}you can't equip armaments as this character.{Style.RESET}")
+            enterToContinue()
+            return
         setattr(entity, name, self.skillset)
         printTypewriter(f"* {Style.BOLD}{self.name}{Style.RESET} equipped as {Style.BOLD}{name}{Style.RESET}.")
         enterToContinue()
@@ -295,7 +303,7 @@ class Greatsword(Item):
         )
     })
     GOALS: list[Goal] = []
-    SKILLSET: Skillset | None = Skillset(Punch())
+    SKILLSET: Skillset | None = Armament(Punch())
     def onSkillUpdate(self, skill: Skill, entity: Entity) -> None: # type: ignore
         skill.extra_damage_pct = skill.EXTRA_DAMAGE_PCT
         skill.crit_damage_pct = skill.CRIT_DAMAGE_PCT

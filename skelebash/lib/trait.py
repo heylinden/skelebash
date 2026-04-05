@@ -41,19 +41,19 @@ class AdaptableTrait(Trait):
     DESCRIPTION: str = "Jack of All Trades. Gains +2% strength on dealing damage, and +2% defense on taking damage."
     def afterDamageDealt(self, entity: Entity, amount: int, target: Entity, source: typing.Any = DamageSource.UNKNOWN) -> None:
         entity.strength_pct += 2
-        printTypewriter(f"{Style.BRIGHT_GREEN}* {entity.name} adapted! strength +2% ({entity.strength_pct}% total){Style.RESET}")
+        printTypewriter(f"{Style.BRIGHT_GREEN}* {entity.name} adapted! strength +2% ({entity.calculate('strength_pct')}% total){Style.RESET}")
 
     def afterDamageTaken(self, entity: Entity, amount: int, source: typing.Any) -> None:
         if amount > 0:
             entity.defense_pct += 2
-            printTypewriter(f"{Style.BRIGHT_GREEN}* {entity.name} adapted! defense +2% ({entity.defense_pct}% total){Style.RESET}")
+            printTypewriter(f"{Style.BRIGHT_GREEN}* {entity.name} adapted! defense +2% ({entity.calculate('defense_pct')}% total){Style.RESET}")
 
 @public
 class BerserkerTrait(Trait):
     NAME: str = "bloodlust"
     DESCRIPTION: str = "Damage dealt increases significantly based on missing health percentage."
     def beforeDamageDealt(self, entity: Entity, amount: int, target: Entity, source: typing.Any = DamageSource.UNKNOWN) -> int:
-        missing_hp_pct = max(0, 100 - max(0, int((entity.hp / entity.max_hp) * 100)))
+        missing_hp_pct = max(0, 100 - max(0, int((entity.hp / entity.calculate("max_hp")) * 100)))
         if missing_hp_pct > 0:
             printTypewriter(f"{Style.RED}{Style.BOLD}* bloodlust increases damage by {missing_hp_pct}%!{Style.RESET}")
             amount = incrpct(amount, missing_hp_pct)

@@ -1,8 +1,8 @@
-import typing, random, enum, math
+import typing, random, enum, math, os, time, sys
 
 
-from .style import printStyle, printTypewriter, Style, enterToContinue, printPanel, breakLine
-from .animation import Animation, PUNCH_ANIMATION, SLASH_ANIMATION, STRIKE_ANIMATION, EXPLOSION_ANIMATION
+from .style import printStyle, printTypewriter, Style, enterToContinue, printPanel, breakLine, printStyleInline
+from .animation import Animation, PUNCH_ANIMATION, SLASH_ANIMATION, STRIKE_ANIMATION, EXPLOSION_ANIMATION, KICK_ANIMATION, CLASH_ANIMATION
 from .util import pct, incrpct, decrpct, pct100
 from .damagesource import DamageSource
 from .effect import HyperarmorEffect
@@ -180,12 +180,12 @@ def playOut(player: Entity, player_skill: Skill | None, enemy: Entity, enemy_ski
     if not player_skill and not enemy_skill:
         return True
 
-    if player_skill and isinstance(player_skill, Burst):
+    if player_skill and isinstance(player_skill, (Burst, Taunt)):
         player_skill.use(player, enemy)
         if enemy_skill:
             enemy_skill.use(enemy, player)
         return True
-    if enemy_skill and isinstance(enemy_skill, Burst):
+    if enemy_skill and isinstance(enemy_skill, (Burst, Taunt)):
         enemy_skill.use(enemy, player)
         if player_skill:
             player_skill.use(player, enemy)
@@ -301,7 +301,15 @@ class QuickBlock(Skill):
     MESSAGE: str = "{entity} readies a quick block."
     STARTUP: int = 4
     PARRY_WINDOW: tuple[int, int] = 5
-    TYPE = SkillType.OTHER
+    TYPE: SkillType = SkillType.OTHER
+
+class QuickBlockNoParry(Skill):
+    NAME: str = "quick block"
+    DESCRIPTION: str = "a fast block for melee attacks."
+    MESSAGE: str = "{entity} readies a quick block."
+    STARTUP: int = 4
+    PARRY_WINDOW: tuple[int, int] = 0
+    TYPE: SkillType = SkillType.OTHER
 
 class SlowBlock(Skill):
     NAME: str = "slow block"
@@ -309,14 +317,22 @@ class SlowBlock(Skill):
     MESSAGE: str = "{entity} readies a slow block."
     STARTUP: int = 14
     PARRY_WINDOW: tuple[int, int] = 5
-    TYPE = SkillType.OTHER
+    TYPE: SkillType = SkillType.OTHER
+
+class SlowBlockNoParry(Skill):
+    NAME: str = "slow block"
+    DESCRIPTION: str = "a steady block for melee attacks."
+    MESSAGE: str = "{entity} readies a slow block."
+    STARTUP: int = 14
+    PARRY_WINDOW: tuple[int, int] = 0
+    TYPE: SkillType = SkillType.OTHER
 
 class Deflect(Skill):
     NAME: str = "deflect"
     DESCRIPTION: str = "a quick block for ranged attacks."
     MESSAGE: str = "{entity} prepares to deflect."
     STARTUP: int = 4
-    TYPE = SkillType.OTHER
+    TYPE: SkillType = SkillType.OTHER
 
 class Burst(Skill):
     NAME: str = "burst"
@@ -324,8 +340,9 @@ class Burst(Skill):
     MESSAGE: str = "{entity} BURSTS!"
     STARTUP: int = 0
     IFRAMES: bool = True
-    TYPE = SkillType.OTHER
-    SUPER_COST = 30
+    TYPE: SkillType = SkillType.OTHER
+    SUPER_COST: int = 30
+    COOLDOWN: int = 2
 
 class Rage(Skill):
     NAME: str = "rage"
@@ -335,10 +352,55 @@ class Rage(Skill):
     HYPERARMOR: bool = True
     TYPE: SkillType = SkillType.OTHER
     SUPER_COST: int = 100
+    STARTING_COOLDOWN: int = 6
+    COOLDOWN: int = 6
     def afterUse(self, entity: Entity, target: Entity, used: Skill.Used) -> None:
         from .effect import RageEffect
         RageEffect.apply(entity, 1, 3)
     
+class Taunt(Skill):
+    NAME: str = "taunt"
+    DESCRIPTION: str = "taunt the enemy to double your super gain, but you take 50% more damage for 3 turns."
+    MESSAGE: str = "{entity} is taunting {target}!"
+    STARTUP: int = 0
+    COOLDOWN: int = 6
+    STARTING_COOLDOWN: int = 6
+    HYPERARMOR: bool = True
+    TYPE: SkillType = SkillType.OTHER
+
+    def use(self, entity: Entity, target: Entity, **kwargs) -> Skill.Used:
+        taunt_dialogues = getattr(entity, "TAUNT_DIALOGUES", [
+            [("entity", "you're nothing."), ("target", "..."), ("entity", "heh.")],
+            [("target", "surrender, you're not winning this..."), ("entity", "you talk too much."), ("entity", "just shut up and fight.")],
+            [("entity", "i'll cut you into pieces!"), ("target", "try me!"), ("entity", "oh i will.")],
+            [("entity", "i thought you were going to be better..."), ("target", "oh don't you mock me!"), ("entity", "heh.")],
+        ])
+        dialogue = random.choice(taunt_dialogues)
+        for speaker_id, text in dialogue:
+            if speaker_id == "entity":
+                printTypewriter(f"* {Style.BRIGHT_ORANGE}{entity.name}{Style.BRIGHT_BLACK}:{Style.RESET} {text}")
+                if "--fast" not in sys.argv: time.sleep(1)
+            else:
+                printStyleInline(' ' * (os.get_terminal_size().columns//2))
+                printTypewriter(f"{Style.BRIGHT_BLUE}{target.name}{Style.BRIGHT_BLACK}:{Style.RESET} {text} *")
+                if "--fast" not in sys.argv: time.sleep(1)
+        
+        from .effect import TauntEffect
+        TauntEffect.apply(entity, 1, 3)
+        return Skill.Used(
+            skill=self,
+            entity=entity,
+            target=target,
+            interrupted=False,
+            was_interrupted=False,
+            tried_to_be_interrupted=False,
+            whiffed=False,
+            crit=False,
+            damage_dealt=0,
+            combo_extendable=False,
+            finisher=False
+        )
+
 class Punch(Skill):
     NAME: str = "punch"
     DESCRIPTION: str = "a weak punch. combo extends."
@@ -477,3 +539,668 @@ class UltimateFocus(Skill):
         from .effect import ArtAmplifiedEffect
         eff = ArtAmplifiedEffect.apply(entity, 1, 100)
         eff.boost_type = "all"
+
+# --- STANCE SKILLS ---
+
+# BALANCED
+class Kick(Skill):
+    NAME: str = "kick"
+    DESCRIPTION: str = "a basic kick. moderate damage and startup."
+    MESSAGE: str = "{entity} kicks {target}."
+    BASE_DAMAGE: int = 10
+    BASE_STUN: int = 1
+    ST_COST: int = 3
+    STARTUP: int = 7
+    COOLDOWN: int = 3
+    ANIMATIONS: list[Animation] = [KICK_ANIMATION]
+
+class Hook(Skill):
+    NAME: str = "hook"
+    DESCRIPTION: str = "a quick hook punch. slightly faster than a regular punch."
+    MESSAGE: str = "{entity} hooks {target}!"
+    BASE_DAMAGE: int = 9
+    BASE_STUN: int = 1
+    ST_COST: int = 2
+    STARTUP: int = 6
+    COOLDOWN: int = 2
+    ANIMATIONS: list[Animation] = [PUNCH_ANIMATION]
+
+class Uppercut(Skill):
+    NAME: str = "uppercut"
+    DESCRIPTION: str = "a powerful rising punch that deals good stun."
+    MESSAGE: str = "{entity} delivers a sharp uppercut to {target}!"
+    BASE_DAMAGE: int = 12
+    BASE_STUN: int = 1
+    ST_COST: int = 5
+    STARTUP: int = 8
+    COOLDOWN: int = 3
+    ANIMATIONS: list[Animation] = [STRIKE_ANIMATION]
+
+class RoundhouseKick(Skill):
+    NAME: str = "roundhouse kick"
+    DESCRIPTION: str = "a powerful spinning kick with high damage."
+    MESSAGE: str = "{entity} roundhouses {target}!"
+    BASE_DAMAGE: int = 18
+    BASE_STUN: int = 1
+    ST_COST: int = 8
+    STARTUP: int = 12
+    COOLDOWN: int = 4
+    ANIMATIONS: list[Animation] = [KICK_ANIMATION]
+
+class Tackle(Skill):
+    NAME: str = "tackle"
+    DESCRIPTION: str = "a basic tackle that closes distance and stuns."
+    MESSAGE: str = "{entity} tackles {target}!"
+    BASE_DAMAGE: int = 10
+    BASE_STUN: int = 1
+    ST_COST: int = 4
+    STARTUP: int = 10
+    COOLDOWN: int = 3
+    ANIMATIONS: list[Animation] = [STRIKE_ANIMATION]
+
+# NINJA
+class QuickStrike(Skill):
+    NAME: str = "quick strike"
+    DESCRIPTION: str = "a very fast strike with low damage."
+    MESSAGE: str = "{entity} strikes {target} with incredible speed."
+    BASE_DAMAGE: int = 5
+    BASE_STUN: int = 1
+    ST_COST: int = 2
+    STARTUP: int = 3
+    COOLDOWN: int = 2
+    ANIMATIONS: list[Animation] = [SLASH_ANIMATION]
+
+class DoubleTap(Skill):
+    NAME: str = "double tap"
+    DESCRIPTION: str = "a rapid two-hit combo."
+    MESSAGE: str = "{entity} taps {target} twice."
+    BASE_DAMAGE: int = 8
+    BASE_STUN: int = 1
+    ST_COST: int = 4
+    STARTUP: int = 4
+    COOLDOWN: int = 3
+    ANIMATIONS: list[Animation] = [PUNCH_ANIMATION]
+
+class TripleStrike(Skill):
+    NAME: str = "triple strike"
+    DESCRIPTION: str = "a rapid three-hit combo that deals moderate damage."
+    MESSAGE: str = "{entity} unleashes a triple strike on {target}!"
+    BASE_DAMAGE: int = 10
+    BASE_STUN: int = 1
+    ST_COST: int = 6
+    STARTUP: int = 5
+    COOLDOWN: int = 4
+    ANIMATIONS: list[Animation] = [SLASH_ANIMATION]
+
+class BackflipKick(Skill):
+    NAME: str = "backflip kick"
+    DESCRIPTION: str = "a quick acrobatic kick with fast recovery."
+    MESSAGE: str = "{entity} performs a backflip kick on {target}!"
+    BASE_DAMAGE: int = 7
+    BASE_STUN: int = 1
+    ST_COST: int = 3
+    STARTUP: int = 4
+    COOLDOWN: int = 3
+    ANIMATIONS: list[Animation] = [KICK_ANIMATION]
+
+class ShadowStrike(Skill):
+    NAME: str = "shadow strike"
+    DESCRIPTION: str = "an extremely fast strike from the shadows. expensive but lethal."
+    MESSAGE: str = "{entity} strikes from the shadows!"
+    BASE_DAMAGE: int = 12
+    BASE_STUN: int = 1
+    ST_COST: int = 10
+    STARTUP: int = 2
+    COOLDOWN: int = 5
+    ANIMATIONS: list[Animation] = [SLASH_ANIMATION]
+
+class DaggerThrow(Skill):
+    NAME: str = "dagger throw"
+    DESCRIPTION: str = "a quick ranged attack with a hidden dagger."
+    MESSAGE: str = "{entity} throws a dagger at {target}!"
+    BASE_DAMAGE: int = 5
+    BASE_STUN: int = 0
+    ST_COST: int = 2
+    STARTUP: int = 4
+    COOLDOWN: int = 1
+    TYPE = SkillType.RANGED
+    ANIMATIONS: list[Animation] = [STRIKE_ANIMATION]
+
+# WARRIOR
+class HeavyStrike(Skill):
+    NAME: str = "heavy strike"
+    DESCRIPTION: str = "a slow but powerful strike with hyperarmor."
+    MESSAGE: str = "{entity} strikes {target} with crushing force!"
+    BASE_DAMAGE: int = 25
+    BASE_STUN: int = 1
+    ST_COST: int = 12
+    STARTUP: int = 15
+    HYPERARMOR: bool = True
+    COOLDOWN: int = 4
+    ANIMATIONS: list[Animation] = [STRIKE_ANIMATION]
+
+class CrushingBlow(Skill):
+    NAME: str = "crushing blow"
+    DESCRIPTION: str = "an extremely heavy attack that ignores defense but is very slow. has hyperarmor."
+    MESSAGE: str = "{entity} UNLEASHES A CRUSHING BLOW ON {target}!"
+    BASE_DAMAGE: int = 35
+    BASE_STUN: int = 0
+    ST_COST: int = 18
+    STARTUP: int = 22
+    HYPERARMOR: bool = True
+    COOLDOWN: int = 5
+    ANIMATIONS: list[Animation] = [EXPLOSION_ANIMATION]
+
+class ShoulderBash(Skill):
+    NAME: str = "shoulder bash"
+    DESCRIPTION: str = "a heavy shoulder bash that utilizes hyperarmor. faster than most warrior moves."
+    MESSAGE: str = "{entity} bashes {target} with their shoulder!"
+    BASE_DAMAGE: int = 15
+    BASE_STUN: int = 1
+    ST_COST: int = 8
+    STARTUP: int = 10
+    HYPERARMOR: bool = True
+    COOLDOWN: int = 3
+    ANIMATIONS: list[Animation] = [STRIKE_ANIMATION]
+
+class OverheadSwing(Skill):
+    NAME: str = "overhead swing"
+    DESCRIPTION: str = "a slow overhead strike with massive weight. has hyperarmor."
+    MESSAGE: str = "{entity} swings down on {target}!"
+    BASE_DAMAGE: int = 28
+    BASE_STUN: int = 0
+    ST_COST: int = 15
+    STARTUP: int = 18
+    HYPERARMOR: bool = True
+    COOLDOWN: int = 5
+    ANIMATIONS: list[Animation] = [STRIKE_ANIMATION]
+
+class GreatSwing(Skill):
+    NAME: str = "great swing"
+    DESCRIPTION: str = "a wide, sweeping swing with hyperarmor."
+    MESSAGE: str = "{entity} performs a great swing against {target}!"
+    BASE_DAMAGE: int = 22
+    BASE_STUN: int = 1
+    ST_COST: int = 12
+    STARTUP: int = 14
+    HYPERARMOR: bool = True
+    COOLDOWN: int = 4
+    ANIMATIONS: list[Animation] = [SLASH_ANIMATION]
+
+class Brace(Skill):
+    NAME: str = "brace"
+    DESCRIPTION: str = "a defensive stance that provides hyperarmor. doesn't deal much damage but protects the user."
+    MESSAGE: str = "{entity} braces for impact!"
+    BASE_DAMAGE: int = 2
+    BASE_STUN: int = 0
+    ST_COST: int = 5
+    STARTUP: int = 2
+    HYPERARMOR: bool = True
+    COOLDOWN: int = 5
+    ANIMATIONS: list[Animation] = [STRIKE_ANIMATION]
+
+# SORCERER
+class ManaBolt(Skill):
+    NAME: str = "mana bolt"
+    DESCRIPTION: str = "a weak bolt of pure mana. normal startup."
+    MESSAGE: str = "{entity} fires a mana bolt at {target}."
+    BASE_DAMAGE: int = 6
+    BASE_STUN: int = 1
+    MN_COST: int = 5
+    STARTUP: int = 8
+    COOLDOWN: int = 2
+    TYPE = SkillType.RANGED
+    ANIMATIONS: list[Animation] = [STRIKE_ANIMATION]
+
+class ArcaneSlap(Skill):
+    NAME: str = "arcane slap"
+    DESCRIPTION: str = "a weak physical slap imbued with mana. normal startup."
+    MESSAGE: str = "{entity} slaps {target} with arcane energy!"
+    BASE_DAMAGE: int = 5
+    BASE_STUN: int = 1
+    MN_COST: int = 2
+    STARTUP: int = 8
+    COOLDOWN: int = 1
+    ANIMATIONS: list[Animation] = [PUNCH_ANIMATION]
+
+class MagicMissile(Skill):
+    NAME: str = "magic missile"
+    DESCRIPTION: str = "fires a barrage of magical missiles. deals moderate damage at range."
+    MESSAGE: str = "{entity} fires magic missiles at {target}!"
+    BASE_DAMAGE: int = 12
+    BASE_STUN: int = 1
+    MN_COST: int = 10
+    STARTUP: int = 10
+    COOLDOWN: int = 4
+    TYPE = SkillType.RANGED
+    ANIMATIONS: list[Animation] = [STRIKE_ANIMATION]
+
+class ManaBurst(Skill):
+    NAME: str = "mana burst"
+    DESCRIPTION: str = "an explosion of mana that deals significant damage."
+    MESSAGE: str = "{entity} releases a mana burst!"
+    BASE_DAMAGE: int = 18
+    BASE_STUN: int = 0
+    MN_COST: int = 15
+    STARTUP: int = 12
+    COOLDOWN: int = 5
+    TYPE = SkillType.EXPLOSION
+    ANIMATIONS: list[Animation] = [EXPLOSION_ANIMATION]
+
+class ArcanePoke(Skill):
+    NAME: str = "arcane poke"
+    DESCRIPTION: str = "a quick, low-cost poke with magical energy."
+    MESSAGE: str = "{entity} pokes {target} with arcane power!"
+    BASE_DAMAGE: int = 4
+    BASE_STUN: int = 1
+    MN_COST: int = 1
+    STARTUP: int = 6
+    COOLDOWN: int = 1
+    ANIMATIONS: list[Animation] = [PUNCH_ANIMATION]
+
+class ElementalStrike(Skill):
+    NAME: str = "elemental strike"
+    DESCRIPTION: str = "a mana-infused strike that deals moderate damage."
+    MESSAGE: str = "{entity} strikes {target} with elemental force!"
+    BASE_DAMAGE: int = 10
+    BASE_STUN: int = 1
+    MN_COST: int = 8
+    STARTUP: int = 10
+    COOLDOWN: int = 3
+    ANIMATIONS: list[Animation] = [STRIKE_ANIMATION]
+
+# MONSTER
+class VenomSlash(Skill):
+    NAME: str = "venom slash"
+    DESCRIPTION: str = "a quick slash that applies poison. fast startup."
+    MESSAGE: str = "{entity} slashes {target} with venomous claws!"
+    BASE_DAMAGE: int = 6
+    BASE_STUN: int = 1
+    ST_COST: int = 3
+    STARTUP: int = 5
+    COOLDOWN: int = 2
+    ANIMATIONS: list[Animation] = [SLASH_ANIMATION]
+    def afterUse(self, entity: Entity, target: Entity, used: Skill.Used) -> None:
+        from .effect import PoisonEffect
+        PoisonEffect.apply(target, 2, 3)
+
+class ToxicSnap(Skill):
+    NAME: str = "toxic snap"
+    DESCRIPTION: str = "a moderate strike that applies strong poison."
+    MESSAGE: str = "{entity} snaps at {target} with toxic fangs!"
+    BASE_DAMAGE: int = 8
+    BASE_STUN: int = 1
+    ST_COST: int = 5
+    STARTUP: int = 8
+    COOLDOWN: int = 3
+    ANIMATIONS: list[Animation] = [STRIKE_ANIMATION]
+    def afterUse(self, entity: Entity, target: Entity, used: Skill.Used) -> None:
+        from .effect import PoisonEffect
+        PoisonEffect.apply(target, 4, 3)
+
+class BlightKick(Skill):
+    NAME: str = "blight kick"
+    DESCRIPTION: str = "a powerful kick that spreads a blight, damaging and poisoning the target."
+    MESSAGE: str = "{entity} kicks {target} with a blighted leg!"
+    BASE_DAMAGE: int = 15
+    BASE_STUN: int = 1
+    ST_COST: int = 8
+    STARTUP: int = 10
+    COOLDOWN: int = 4
+    ANIMATIONS: list[Animation] = [KICK_ANIMATION]
+    def afterUse(self, entity: Entity, target: Entity, used: Skill.Used) -> None:
+        from .effect import PoisonEffect
+        PoisonEffect.apply(target, 3, 3)
+
+class AcidSpit(Skill):
+    NAME: str = "acid spit"
+    DESCRIPTION: str = "a ranged acid attack that deals low damage but high poison."
+    MESSAGE: str = "{entity} spits acid at {target}!"
+    BASE_DAMAGE: int = 4
+    BASE_STUN: int = 0
+    ST_COST: int = 4
+    STARTUP: int = 7
+    COOLDOWN: int = 2
+    TYPE = SkillType.RANGED
+    ANIMATIONS: list[Animation] = [STRIKE_ANIMATION]
+    def afterUse(self, entity: Entity, target: Entity, used: Skill.Used) -> None:
+        from .effect import PoisonEffect
+        PoisonEffect.apply(target, 5, 3)
+
+class NumbingBite(Skill):
+    NAME: str = "numbing bite"
+    DESCRIPTION: str = "a bite that numbs the target, increasing their stun."
+    MESSAGE: str = "{entity} sinks their fangs into {target}!"
+    BASE_DAMAGE: int = 5
+    BASE_STUN: int = 3
+    ST_COST: int = 4
+    STARTUP: int = 6
+    COOLDOWN: int = 3
+    ANIMATIONS: list[Animation] = [STRIKE_ANIMATION]
+
+class Frenzy(Skill):
+    NAME: str = "frenzy"
+    DESCRIPTION: str = "a rapid series of wild claw swipes."
+    MESSAGE: str = "{entity} goes into a frenzy against {target}!"
+    BASE_DAMAGE: int = 18
+    BASE_STUN: int = 0
+    ST_COST: int = 10
+    STARTUP: int = 12
+    COOLDOWN: int = 5
+    ANIMATIONS: list[Animation] = [SLASH_ANIMATION@0.005, STRIKE_ANIMATION@0.005]*7
+
+
+# ANDROID
+class HydraulicPunch(Skill):
+    NAME: str = "hydraulic punch"
+    DESCRIPTION: str = "a powerful punch fueled by high pressure. high charge cost."
+    MESSAGE: str = "{entity} delivers a hydraulic punch to {target}!"
+    BASE_DAMAGE: int = 28
+    BASE_STUN: int = 1
+    ST_COST: int = 25
+    STARTUP: int = 12
+    COOLDOWN: int = 3
+    ANIMATIONS: list[Animation] = [PUNCH_ANIMATION]
+
+class ShieldBash(Skill):
+    NAME: str = "shield bash"
+    DESCRIPTION: str = "a heavy bash with integrated shielding. has hyperarmor."
+    MESSAGE: str = "{entity} bashes {target} with their reinforced arm!"
+    BASE_DAMAGE: int = 20
+    BASE_STUN: int = 0
+    ST_COST: int = 20
+    STARTUP: int = 15
+    HYPERARMOR: bool = True
+    COOLDOWN: int = 4
+    ANIMATIONS: list[Animation] = [STRIKE_ANIMATION]
+
+class Discharge(Skill):
+    NAME: str = "discharge"
+    DESCRIPTION: str = "releases accumulated heat as a shockwave. deals explosion damage."
+    MESSAGE: str = "{entity} discharges energy at {target}!"
+    BASE_DAMAGE: int = 22
+    BASE_STUN: int = 0
+    ST_COST: int = 15
+    STARTUP: int = 10
+    COOLDOWN: int = 5
+    TYPE = SkillType.EXPLOSION
+    ANIMATIONS: list[Animation] = [EXPLOSION_ANIMATION]
+
+class RechargeProtocol(Skill):
+    NAME: str = "recharge"
+    DESCRIPTION: str = "temporarily diverts power to core systems. restores charge."
+    MESSAGE: str = "{entity} initiates recharge protocol."
+    BASE_DAMAGE: int = 0
+    BASE_STUN: int = 0
+    ST_COST: int = 0
+    STARTUP: int = 5
+    COOLDOWN: int = 3
+    TYPE = SkillType.OTHER
+    def afterUse(self, entity: Entity, target: Entity, used: Skill.Used) -> None:
+        entity.healStamina(30)
+        printTypewriter(f"{Style.BRIGHT_BLUE}* restored 30 {entity.ST_LABEL}!{Style.RESET}")
+
+class HeavyHydraulics(Skill):
+    NAME: str = "heavy hydraulics"
+    DESCRIPTION: str = "the heaviest hit available for androids. massive damage and charge cost."
+    MESSAGE: str = "{entity} CRUSHES {target} with heavy hydraulics!"
+    BASE_DAMAGE: int = 45
+    BASE_STUN: int = 0
+    ST_COST: int = 40
+    STARTUP: int = 22
+    HYPERARMOR: bool = True
+    COOLDOWN: int = 6
+    ANIMATIONS: list[Animation] = [EXPLOSION_ANIMATION]
+
+class Overload(Skill):
+    NAME: str = "overload"
+    DESCRIPTION: str = "releases all safeties for a massive hit, but stuns the user."
+    MESSAGE: str = "{entity} OVERLOADS their core to strike {target}!"
+    BASE_DAMAGE: int = 60
+    BASE_STUN: int = 2
+    ST_COST: int = 50
+    STARTUP: int = 25
+    HYPERARMOR: bool = True
+    COOLDOWN: int = 8
+    ANIMATIONS: list[Animation] = [EXPLOSION_ANIMATION]
+    def afterUse(self, entity: Entity, target: Entity, used: Skill.Used) -> None:
+        printTypewriter(f"{Style.RED}* core overheat! {entity.name} is stunned!{Style.RESET}")
+        entity.stun += 2
+
+
+# GLASS CANNON
+
+# STANCE
+class GlassSliver(Skill):
+    NAME: str = "glass sliver"
+    DESCRIPTION: str = "a quick, sharp jab with a shard of glass."
+    MESSAGE: str = "{entity} jabs {target} with a glass sliver!"
+    BASE_DAMAGE: int = 10
+    BASE_STUN: int = 1
+    ST_COST: int = 3
+    STARTUP: int = 4
+    COOLDOWN: int = 1
+    ANIMATIONS: list[Animation] = [STRIKE_ANIMATION]
+
+class CrystalDash(Skill):
+    NAME: str = "crystal dash"
+    DESCRIPTION: str = "a quick dash forward with glass protection. has iframes."
+    MESSAGE: str = "{entity} dashes through {target} in a flash of crystal!"
+    BASE_DAMAGE: int = 14
+    BASE_STUN: int = 1
+    ST_COST: int = 6
+    STARTUP: int = 6
+    IFRAMES: bool = True
+    COOLDOWN: int = 4
+    ANIMATIONS: list[Animation] = [STRIKE_ANIMATION]
+
+class RefractionStrike(Skill):
+    NAME: str = "refraction strike"
+    DESCRIPTION: str = "a strike that bends light to hit a vulnerable spot. high crit chance."
+    MESSAGE: str = "{entity} strikes {target} through a refracted light!"
+    BASE_DAMAGE: int = 16
+    BASE_STUN: int = 1
+    ST_COST: int = 8
+    STARTUP: int = 9
+    CRIT_CHANCE_PCT: int = 40
+    COOLDOWN: int = 3
+    ANIMATIONS: list[Animation] = [SLASH_ANIMATION]
+
+class BrittleKick(Skill):
+    NAME: str = "brittle kick"
+    DESCRIPTION: str = "a heavy kick that shatters on impact, dealing bonus damage."
+    MESSAGE: str = "{entity} delivers a brittle but heavy kick to {target}!"
+    BASE_DAMAGE: int = 24
+    BASE_STUN: int = 0
+    ST_COST: int = 10
+    STARTUP: int = 15
+    COOLDOWN: int = 5
+    ANIMATIONS: list[Animation] = [KICK_ANIMATION]
+
+class MirrorSlash(Skill):
+    NAME: str = "mirror slash"
+    DESCRIPTION: str = "a clean slash that reflects the target's image."
+    MESSAGE: str = "{entity} slashes {target} with a mirrored blade!"
+    BASE_DAMAGE: int = 18
+    BASE_STUN: int = 1
+    ST_COST: int = 7
+    STARTUP: int = 7
+    COOLDOWN: int = 2
+    ANIMATIONS: list[Animation] = [SLASH_ANIMATION]
+
+class ShatterPoint(Skill):
+    NAME: str = "shatter point"
+    DESCRIPTION: str = "a precise strike aimed at the target's weakest point."
+    MESSAGE: str = "{entity} strikes the shatter point of {target}!"
+    BASE_DAMAGE: int = 35
+    BASE_STUN: int = 0
+    ST_COST: int = 20
+    STARTUP: int = 20
+    HYPERARMOR: bool = True
+    COOLDOWN: int = 6
+    ANIMATIONS: list[Animation] = [STRIKE_ANIMATION]
+
+# ART
+class ShardShot(Skill):
+    NAME: str = "shard shot"
+    DESCRIPTION: str = "fires a sharp glass shard at the target. low mana cost."
+    MESSAGE: str = "{entity} fires a glass shard at {target}!"
+    BASE_DAMAGE: int = 12
+    BASE_STUN: int = 1
+    MN_COST: int = 5
+    STARTUP: int = 8
+    COOLDOWN: int = 2
+    TYPE = SkillType.RANGED
+    ANIMATIONS: list[Animation] = [STRIKE_ANIMATION]
+
+class MirrorShield(Skill):
+    NAME: str = "mirror shield"
+    DESCRIPTION: str = "creates a thin shield of glass that perfect blocks one attack."
+    MESSAGE: str = "{entity} manifests a mirror shield!"
+    BASE_DAMAGE: int = 0
+    BASE_STUN: int = 0
+    MN_COST: int = 10
+    STARTUP: int = 4
+    COOLDOWN: int = 5
+    TYPE = SkillType.OTHER
+    def afterUse(self, entity: Entity, target: Entity, used: Skill.Used) -> None:
+        from .effect import GlassShieldEffect
+        GlassShieldEffect.apply(entity, 1, 10)
+
+class GlassGating(Skill):
+    NAME: str = "glass gating"
+    DESCRIPTION: str = "summons multiple glass panes to crush the target. heavy damage."
+    MESSAGE: str = "{entity} gates {target} between glass panes!"
+    BASE_DAMAGE: int = 32
+    BASE_STUN: int = 0
+    MN_COST: int = 15
+    STARTUP: int = 14
+    COOLDOWN: int = 4
+    ANIMATIONS: list[Animation] = [EXPLOSION_ANIMATION]
+
+class PrismBurst(Skill):
+    NAME: str = "prism burst"
+    DESCRIPTION: str = "shatters a prism, sending glass shards in all directions."
+    MESSAGE: str = "{entity} shatters a prism around {target}!"
+    BASE_DAMAGE: int = 24
+    BASE_STUN: int = 0
+    MN_COST: int = 12
+    STARTUP: int = 10
+    COOLDOWN: int = 4
+    TYPE = SkillType.EXPLOSION
+    ANIMATIONS: list[Animation] = [EXPLOSION_ANIMATION]
+
+class LensBurst(Skill):
+    NAME: str = "lens burst"
+    DESCRIPTION: str = "concentrates mana through a glass lens for a powerful beam."
+    MESSAGE: str = "{entity} fires a lens-intensified burst at {target}!"
+    BASE_DAMAGE: int = 28
+    BASE_STUN: int = 1
+    MN_COST: int = 20
+    STARTUP: int = 12
+    COOLDOWN: int = 4
+    TYPE = SkillType.RANGED
+    ANIMATIONS: list[Animation] = [EXPLOSION_ANIMATION]
+
+class InfiniteReflection(Skill):
+    NAME: str = "super: infinite reflection"
+    DESCRIPTION: str = "summons an array of mirrors that strike the target from all sides."
+    MESSAGE: str = "{entity} unleashes INFINITE REFLECTION on {target}!"
+    BASE_DAMAGE: int = 50
+    BASE_STUN: int = 0
+    MN_COST: int = 0
+    SUPER_COST: int = 100
+    STARTUP: int = 10
+    COOLDOWN: int = 1
+    TYPE = SkillType.OTHER
+    ANIMATIONS: list[Animation] = [SLASH_ANIMATION, SLASH_ANIMATION, SLASH_ANIMATION]
+
+# MANA VESSEL
+class PurpleFlame(Skill):
+    NAME: str = "purple flame"
+    DESCRIPTION: str = "a burst of intense purple mana flames."
+    MESSAGE: str = "{entity} unleashes purple flames on {target}!"
+    BASE_DAMAGE: int = 14
+    BASE_STUN: int = 1
+    MN_COST: int = 8
+    STARTUP: int = 9
+    COOLDOWN: int = 2
+    ANIMATIONS: list[Animation] = [EXPLOSION_ANIMATION]
+
+class ManaSiphon(Skill):
+    NAME: str = "mana siphon"
+    DESCRIPTION: str = "drains mana and super energy from the target."
+    MESSAGE: str = "{entity} siphons energy from {target}!"
+    BASE_DAMAGE: int = 4
+    BASE_STUN: int = 1
+    MN_COST: int = 0
+    STARTUP: int = 6
+    COOLDOWN: int = 3
+    def afterUse(self, entity: Entity, target: Entity, used: Skill.Used) -> None:
+        drain = 10
+        target.mn = max(0, target.mn - drain)
+        entity.healMana(drain)
+        if isinstance(target, Player):
+             target.super = max(0, target.super - 10)
+        if isinstance(entity, Player):
+             entity.super = min(entity.max_super, entity.super + 10)
+        printTypewriter(f"{Style.BRIGHT_BLUE}* siphoned 10 mana and 10 super!{Style.RESET}")
+
+class CopySkill(Skill):
+    NAME: str = "copy"
+    DESCRIPTION: str = "copies the last skill used by the enemy to use as an art."
+    MESSAGE: str = "{entity} mimics {target}'s resonance!"
+    BASE_DAMAGE: int = 0
+    BASE_STUN: int = 0
+    MN_COST: int = 5
+    STARTUP: int = 4
+    COOLDOWN: int = 1
+    TYPE = SkillType.OTHER
+    def afterUse(self, entity: Entity, target: Entity, used: Skill.Used) -> None:
+        if target.last_skill_used:
+            copied = target.last_skill_used.skill
+            printTypewriter(f"{Style.MAGENTA}* copied {copied.name}!{Style.RESET}")
+            # Temporary logic: just use it right now
+            copied.use(entity, target)
+        else:
+            printTypewriter(f"{Style.BRIGHT_BLACK}* target hasn't used a skill yet.{Style.RESET}")
+
+class ManaWave(Skill):
+    NAME: str = "mana wave"
+    DESCRIPTION: str = "a wide pulse of mana that pushes the target back."
+    MESSAGE: str = "{entity} sends a mana wave towards {target}!"
+    BASE_DAMAGE: int = 12
+    BASE_STUN: int = 2
+    MN_COST: int = 15
+    STARTUP: int = 10
+    COOLDOWN: int = 4
+    TYPE = SkillType.EXPLOSION
+    ANIMATIONS: list[Animation] = [EXPLOSION_ANIMATION]
+
+class EtherFlash(Skill):
+    NAME: str = "ether flash"
+    DESCRIPTION: str = "a blinding flash of mana that makes the user harder to hit."
+    MESSAGE: str = "{entity} creates an ether flash!"
+    BASE_DAMAGE: int = 4
+    BASE_STUN: int = 1
+    MN_COST: int = 10
+    STARTUP: int = 5
+    COOLDOWN: int = 5
+    TYPE = SkillType.OTHER
+    def afterUse(self, entity: Entity, target: Entity, used: Skill.Used) -> None:
+         from .effect import StatEffect
+         StatEffect.apply(entity, "agility_pct", 30, 3)
+         printTypewriter(f"{Style.BRIGHT_BLUE}* agility increased by 30%!{Style.RESET}")
+
+class VesselOverload(Skill):
+    NAME: str = "super: vessel overload"
+    DESCRIPTION: str = "unleashes the full capacity of the mana vessel in a massive burst."
+    MESSAGE: str = "{entity} OVERLOADS their vessel against {target}!"
+    BASE_DAMAGE: int = 65
+    BASE_STUN: int = 0
+    MN_COST: int = 0
+    SUPER_COST: int = 100
+    STARTUP: int = 15
+    COOLDOWN: int = 1
+    TYPE = SkillType.EXPLOSION
+    ANIMATIONS: list[Animation] = [EXPLOSION_ANIMATION, EXPLOSION_ANIMATION]

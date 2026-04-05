@@ -35,7 +35,7 @@ class ComplexBrain(Brain):
                 "just wait until my skills are off cooldown..."
             ])
 
-        hp_pct = entity.hp / entity.max_hp if entity.max_hp > 0 else 0
+        hp_pct = entity.hp / entity.calculate("max_hp") if entity.calculate("max_hp") > 0 else 0
         if hp_pct < 0.3:
             defensive_skills = [skill for skill in available_skills if "block" in skill.name.lower() or "guard" in skill.name.lower()]
             if defensive_skills:

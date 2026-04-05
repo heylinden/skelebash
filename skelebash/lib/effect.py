@@ -13,6 +13,8 @@ class Effect:
     NAME: str = "unknown effect"
     DESCRIPTION: str = "no description"
     SHOW: bool = True
+    APPLY_MESSAGE: str = "* {entity} was afflicted with {effect}!"
+    REMOVE_MESSAGE: str = "* {entity} recovered from {effect}."
 
     def __init__(self, level: int, duration: int = 1) -> None:
         self.name: str = self.NAME
@@ -29,11 +31,11 @@ class Effect:
         entity.addEffect(effect)
         return effect
     def onApply(self, entity: Entity) -> None:
-        printTypewriter(f"* {entity.name} was afflicted with {self.name}!")
+        printTypewriter(self.APPLY_MESSAGE.format(entity=entity.name, effect=self.name, duration=self.duration, **Style.__dict__))
     def onTick(self, entity: Entity, skelebash: Skelebash) -> None: # type: ignore
         self.duration -= 1
     def onRemove(self, entity: Entity) -> None:
-        printTypewriter(f"* {entity.name} recovered from {self.name}.")
+        printTypewriter(self.REMOVE_MESSAGE.format(entity=entity.name, effect=self.name, **Style.__dict__))
     def onTurnStart(self, entity: Entity) -> None:
         pass
     def beforeDamageTaken(self, entity: Entity, amount: int, source: typing.Any) -> int:
@@ -57,7 +59,17 @@ class DamageEffect(Effect):
     SHOW: bool = True
     def onTick(self, entity: Entity, skelebash: Skelebash) -> None:  # type: ignore
         entity.hp -= self.level
-        printTypewriter(f"{entity.name} took {self.level} damage from {self.name}! ({entity.hp} / {entity.max_hp})")
+        printTypewriter(f"{entity.name} took {self.level} damage from {self.name}! ({entity.hp} / {entity.calculate('max_hp')})")
+        super().onTick(entity, skelebash)
+
+@public
+class PoisonEffect(DamageEffect):
+    NAME: str = "poison"
+    DESCRIPTION: str = "takes {level} poison damage per turn."
+    APPLY_MESSAGE: str = "* {entity} was poisoned!"
+    REMOVE_MESSAGE: str = "* {entity} is no longer poisoned."
+    def onTick(self, entity: Entity, skelebash: Skelebash) -> None: # type: ignore
+        printTypewriter(f"{Style.BRIGHT_GREEN}* {entity.name} suffers from poison!{Style.RESET}")
         super().onTick(entity, skelebash)
 
 @public
@@ -118,3 +130,39 @@ class BurstEffect(Effect):
         entity.iframes = True
     def onRemove(self, entity: Entity) -> None:
         entity.iframes = False
+
+@public
+class TauntEffect(Effect):
+    NAME: str = "taunted"
+    DESCRIPTION: str = "doubles super gain but increases damage taken by 50%."
+    SHOW: bool = True
+    APPLY_MESSAGE: str = "* {entity} now gains 2x {REDDISH_PINK}super{RESET} for {duration} turns, but the target will deal 150% {BRIGHT_RED}damage{RESET}!"
+    def returnAttribute(self, attribute: str, value: int) -> int:
+        if attribute == "super_gain_pct":
+            return value * 2
+        return value
+    def beforeDamageTaken(self, entity: Entity, amount: int, source: typing.Any) -> int:
+        return incrpct(amount, 50)
+
+@public
+class GlassShieldEffect(Effect):
+    NAME: str = "glass shield"
+    DESCRIPTION: str = "protects from the next instance of damage."
+    APPLY_MESSAGE: str = "* {entity} created a {Style.BRIGHT_BLUE}glass shield{Style.RESET}!"
+    REMOVE_MESSAGE: str = "* the {Style.BRIGHT_BLUE}glass shield{Style.RESET} shattered!"
+    def beforeDamageTaken(self, entity: Entity, amount: int, source: typing.Any) -> int:
+        if amount > 0:
+            printTypewriter(f"{Style.BRIGHT_BLUE}* the glass shield absorbed the impact!{Style.RESET}")
+            entity.removeEffect(self)
+            return 0
+        return amount
+
+@public
+class OverchargeEffect(RageEffect):
+    NAME: str = "overcharge"
+    DESCRIPTION: str = "massively increases power and provides infinite charge."
+    APPLY_MESSAGE: str = "* {entity} is OVERCHARGED!"
+    REMOVE_MESSAGE: str = "* {entity} powered down."
+    def onTick(self, entity: Entity, skelebash: Skelebash) -> None: # type: ignore
+        entity.st = entity.calculate("max_st")
+        super().onTick(entity, skelebash)
